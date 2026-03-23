@@ -18,8 +18,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'NexoMed API is running' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  console.error('Error starting server:', err);
 });
 
 export default app;
