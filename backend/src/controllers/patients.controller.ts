@@ -17,7 +17,7 @@ export const getPatients = async (req: AuthRequest, res: Response) => {
 
 // GET /api/patients/:id — ficha completa del paciente
 export const getPatientById = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   try {
     const patient = await prisma.patient.findUnique({
       where: { id },
@@ -49,7 +49,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
 
 // PUT /api/patients/:id/discharge — dar de baja (desvincula la cama)
 export const dischargePatient = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   try {
     const patient = await prisma.patient.update({
       where: { id },

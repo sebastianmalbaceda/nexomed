@@ -25,7 +25,7 @@ export const createCareRecord = async (req: AuthRequest, res: Response) => {
 
 // GET /api/cares/:patientId — historial de cuidados de un paciente
 export const getCareRecords = async (req: AuthRequest, res: Response) => {
-  const { patientId } = req.params;
+  const { patientId } = req.params as { patientId: string };
   try {
     const records = await prisma.careRecord.findMany({
       where: { patientId },

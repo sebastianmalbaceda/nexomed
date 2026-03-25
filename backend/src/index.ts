@@ -6,16 +6,24 @@ import authRoutes from './routes/auth.routes';
 import patientRoutes from './routes/patients.routes';
 import bedRoutes from './routes/beds.routes';
 import careRoutes from './routes/careRecords.routes';
+import medicationRoutes from './routes/medications.routes';
+import notificationRoutes from './routes/notifications.routes';
+import incidentRoutes from './routes/incidents.routes';
+import diagnosticTestRoutes from './routes/diagnosticTests.routes';
 
 dotenv.config();
 const app = express();
-app.use(cors());
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/beds', bedRoutes);
 app.use('/api/cares', careRoutes);
+app.use('/api/medications', medicationRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/incidents', incidentRoutes);
+app.use('/api/tests', diagnosticTestRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`NexoMed backend corriendo en puerto ${PORT}`));
