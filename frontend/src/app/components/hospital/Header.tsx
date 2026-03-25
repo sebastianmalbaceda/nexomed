@@ -1,7 +1,4 @@
-'use client';
-
 import { Bell, ChevronDown, User, LogOut } from 'lucide-react';
-import { signOut, useSession } from 'next-auth/react';
 
 interface HeaderProps {
   currentRole: string;
@@ -11,11 +8,16 @@ interface HeaderProps {
 }
 
 export function Header({ currentRole, onRoleChange, notifications, onNotificationsClick }: HeaderProps) {
-  const { data: session } = useSession();
+  const mockUser = {
+    name: "Dr. Raúl",
+    employeeId: "MED-001"
+  };
+
   const roles = ['Médico/a', 'Enfermero/a', 'TCAE'];
 
-  const handleLogout = async () => {
-    await signOut({ callbackUrl: '/login' });
+  const handleLogout = () => {
+    console.log("Saliendo de la aplicación...");
+    alert("Función de cierre de sesión simulada.");
   };
 
   return (
@@ -58,8 +60,8 @@ export function Header({ currentRole, onRoleChange, notifications, onNotificatio
             <User className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="text-sm hidden sm:block">
-            <div className="text-foreground font-medium">{session?.user?.name || 'Usuario'}</div>
-            <div className="text-muted-foreground text-xs">ID: {session?.user?.employeeId || 'N/A'}</div>
+            <div className="text-foreground font-medium">{mockUser.name}</div>
+            <div className="text-muted-foreground text-xs">ID: {mockUser.employeeId}</div>
           </div>
         </div>
 
