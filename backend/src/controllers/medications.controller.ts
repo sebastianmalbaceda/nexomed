@@ -2,6 +2,10 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { generateSchedulesForMedication, reschedulePendingMedication } from '../services/medication.service';
+import { notifyNursesAboutMedicationChange } from '../services/notification.service';
+import { createMedicationSchema, updateScheduleSchema } from '../validations/medication.validation';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // GET /api/medications/:patientId — medicación activa del paciente
 export const getMedications = async (req: AuthRequest, res: Response) => {
@@ -16,14 +20,19 @@ export const getMedications = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
     res.json(medications);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
 // POST /api/medications — prescribir medicación (solo DOCTOR)
 export const createMedication = async (req: AuthRequest, res: Response) => {
-  const { patientId, drugName, nregistro, dose, route, frequencyHrs, startTime } = req.body;
+  const validation = createMedicationSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { patientId, drugName, nregistro, dose, route, frequencyHrs, startTime } = validation.data;
   try {
     const medication = await prisma.medication.create({
       data: {
@@ -38,19 +47,22 @@ export const createMedication = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // Generar los primeros 3 horarios automáticamente
-    const schedules = [];
-    for (let i = 0; i < 3; i++) {
-      schedules.push({
-        medicationId: medication.id,
-        scheduledAt: new Date(new Date(startTime).getTime() + i * frequencyHrs * 60 * 60 * 1000)
-      });
-    }
-    await prisma.medSchedule.createMany({ data: schedules });
+    await generateSchedulesForMedication(
+      medication.id,
+      new Date(startTime),
+      frequencyHrs,
+      24
+    );
+
+    await notifyNursesAboutMedicationChange(
+      patientId,
+      'MED_NEW',
+      `Nueva medicación prescrita: ${drugName} ${dose}`
+    );
 
     res.status(201).json(medication);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -58,13 +70,68 @@ export const createMedication = async (req: AuthRequest, res: Response) => {
 export const deactivateMedication = async (req: AuthRequest, res: Response) => {
   const { id } = req.params as { id: string };
   try {
-    const medication = await prisma.medication.update({
+    const medication = await prisma.medication.findUnique({
+      where: { id },
+      include: { patient: true }
+    });
+
+    if (!medication) {
+      return res.status(404).json({ error: 'Medicación no encontrada' });
+    }
+
+    const updated = await prisma.medication.update({
       where: { id },
       data: { active: false }
     });
-    res.json(medication);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+
+    await notifyNursesAboutMedicationChange(
+      medication.patientId,
+      'MED_REMOVED',
+      `Medicación retirada: ${medication.drugName}`
+    );
+
+    res.json(updated);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
+// PUT /api/medications/:id/schedule — cambiar horario de medicación (recálculo)
+export const updateMedicationSchedule = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as { id: string };
+  
+  const validation = updateScheduleSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { newStartTime } = validation.data;
+
+  try {
+    const medication = await prisma.medication.findUnique({
+      where: { id }
+    });
+
+    if (!medication) {
+      return res.status(404).json({ error: 'Medicación no encontrada' });
+    }
+
+    await reschedulePendingMedication(
+      medication.id,
+      new Date(newStartTime),
+      medication.frequencyHrs,
+      24
+    );
+
+    await notifyNursesAboutMedicationChange(
+      medication.patientId,
+      'MED_CHANGE',
+      `Horario de medicación cambiado: ${medication.drugName}`
+    );
+
+    res.json({ message: 'Horarios recalculados correctamente' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -80,7 +147,7 @@ export const administerSchedule = async (req: AuthRequest, res: Response) => {
       }
     });
     res.json(schedule);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };

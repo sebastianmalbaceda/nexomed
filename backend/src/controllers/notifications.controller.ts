@@ -2,6 +2,7 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // GET /api/notifications — notificaciones del usuario autenticado
 export const getNotifications = async (req: AuthRequest, res: Response) => {
@@ -15,8 +16,8 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
       }
     });
     res.json(notifications);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -29,8 +30,8 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       data: { read: true }
     });
     res.json(notification);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -42,7 +43,7 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
       data: { read: true }
     });
     res.json({ ok: true });
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };

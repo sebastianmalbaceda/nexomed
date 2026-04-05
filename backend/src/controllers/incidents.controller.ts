@@ -2,6 +2,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createIncidentSchema } from '../validations/incident.validation';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // GET /api/incidents/:patientId — incidencias de un paciente
 export const getIncidents = async (req: AuthRequest, res: Response) => {
@@ -15,14 +17,19 @@ export const getIncidents = async (req: AuthRequest, res: Response) => {
       }
     });
     res.json(incidents);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
 // POST /api/incidents — registrar incidencia
 export const createIncident = async (req: AuthRequest, res: Response) => {
-  const { patientId, type, description } = req.body;
+  const validation = createIncidentSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { patientId, type, description } = validation.data;
   try {
     const incident = await prisma.incident.create({
       data: {
@@ -33,7 +40,7 @@ export const createIncident = async (req: AuthRequest, res: Response) => {
       }
     });
     res.status(201).json(incident);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };

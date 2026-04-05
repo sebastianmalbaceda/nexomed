@@ -2,24 +2,38 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createCareRecordWithAntiDuplicate } from '../services/careRecord.service';
+import { createCareRecordSchema } from '../validations/careRecord.validation';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // POST /api/cares — registrar cuidado o constante
 export const createCareRecord = async (req: AuthRequest, res: Response) => {
-  const { patientId, type, value, unit, notes } = req.body;
+  const validation = createCareRecordSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { patientId, type, value, unit, notes } = validation.data;
   try {
-    const care = await prisma.careRecord.create({
-      data: {
-        patientId,
-        type,      // ej: "tension", "temperatura", "cura", "higiene"
-        value,
-        unit,
-        notes,
-        recordedById: req.user!.id
-      }
-    });
-    res.status(201).json(care);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+    const result = await createCareRecordWithAntiDuplicate(
+      patientId,
+      type,
+      value,
+      unit ?? null,
+      notes ?? null,
+      req.user!.id
+    );
+
+    if (result.duplicate) {
+      return res.status(409).json({
+        error: result.message,
+        existingRecord: result.existingRecord
+      });
+    }
+
+    res.status(201).json(result.careRecord);
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -33,7 +47,7 @@ export const getCareRecords = async (req: AuthRequest, res: Response) => {
       include: { recordedBy: { select: { name: true, role: true } } }
     });
     res.json(records);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };

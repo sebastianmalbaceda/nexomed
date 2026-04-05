@@ -2,6 +2,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createPatientSchema } from '../validations/patient.validation';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // GET /api/patients — lista todos los pacientes activos con su cama
 export const getPatients = async (req: AuthRequest, res: Response) => {
@@ -10,8 +12,8 @@ export const getPatients = async (req: AuthRequest, res: Response) => {
       include: { bed: true }
     });
     res.json(patients);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -29,21 +31,26 @@ export const getPatientById = async (req: AuthRequest, res: Response) => {
     });
     if (!patient) return res.status(404).json({ error: 'Paciente no encontrado' });
     res.json(patient);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
 // POST /api/patients — dar de alta un paciente
 export const createPatient = async (req: AuthRequest, res: Response) => {
-  const { name, dob, diagnosis, allergies, bedId } = req.body;
+  const validation = createPatientSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { name, dob, diagnosis, allergies, bedId } = validation.data;
   try {
     const patient = await prisma.patient.create({
       data: { name, dob: new Date(dob), diagnosis, allergies, bedId }
     });
     res.status(201).json(patient);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
@@ -56,7 +63,7 @@ export const dischargePatient = async (req: AuthRequest, res: Response) => {
       data: { bedId: null }
     });
     res.json(patient);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };

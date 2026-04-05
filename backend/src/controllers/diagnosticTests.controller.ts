@@ -2,6 +2,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createDiagnosticTestSchema, updateTestResultSchema } from '../validations/diagnosticTest.validation';
+import { handlePrismaError } from '../lib/errorHandler';
 
 // GET /api/tests/:patientId — pruebas diagnósticas de un paciente
 export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
@@ -15,14 +17,19 @@ export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
       }
     });
     res.json(tests);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
 // POST /api/tests — solicitar prueba diagnóstica (solo DOCTOR)
 export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
-  const { patientId, type, name, scheduledAt } = req.body;
+  const validation = createDiagnosticTestSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { patientId, type, name, scheduledAt } = validation.data;
   try {
     const test = await prisma.diagnosticTest.create({
       data: {
@@ -34,22 +41,27 @@ export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
       }
     });
     res.status(201).json(test);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
 
 // PUT /api/tests/:id/result — registrar resultado
 export const addTestResult = async (req: AuthRequest, res: Response) => {
+  const validation = updateTestResultSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
   const { id } = req.params as { id: string };
-  const { result } = req.body;
+  const { result } = validation.data;
   try {
     const test = await prisma.diagnosticTest.update({
       where: { id },
       data: { result }
     });
     res.json(test);
-  } catch {
-    res.status(500).json({ error: 'Error interno' });
+  } catch (error) {
+    return handlePrismaError(error, res);
   }
 };
