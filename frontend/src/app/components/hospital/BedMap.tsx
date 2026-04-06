@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BedDouble, User, AlertCircle, Clock, Heart, Droplet, Activity, ChevronRight } from 'lucide-react';
+import { BedDouble, User, AlertCircle, Heart, Droplet, Activity, ChevronRight } from 'lucide-react';
 
 interface BedInfo {
   id: string;
