@@ -29,9 +29,9 @@ export function getCurrentShift(): { label: string; emoji: string } {
 
 /** Seed quick-login credentials (matches backend seed.ts) */
 export const SEED_CREDENTIALS = [
-  { label: 'Médico',    role: 'DOCTOR' as Role, email: 'doctor@nexomed.es',    password: 'password123' },
-  { label: 'Enfermero', role: 'NURSE'  as Role, email: 'enfermero@nexomed.es', password: 'password123' },
-  { label: 'TCAE',      role: 'TCAE'   as Role, email: 'tcae@nexomed.es',       password: 'password123' },
+  { label: 'Dr. García',  role: 'DOCTOR' as Role, email: 'dr.garcia@nexomed.es',      password: 'password123' },
+  { label: 'Enf. Martínez', role: 'NURSE' as Role, email: 'enf.martinez@nexomed.es', password: 'password123' },
+  { label: 'TCAE Sánchez', role: 'TCAE'  as Role, email: 'tcae.sanchez@nexomed.es',  password: 'password123' },
 ] as const;
 
 export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
