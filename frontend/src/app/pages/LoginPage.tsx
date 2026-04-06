@@ -59,7 +59,7 @@ export default function LoginPage() {
                 <path d="M12 8v8M8 12h8" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">NexoMed</h1>
+            <h1 className="text-2xl font-medium text-foreground mb-2">NexoMed</h1>
             <p className="text-muted-foreground">Sistema de Gestión Clínica Hospitalaria</p>
           </div>
 
