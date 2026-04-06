@@ -21,7 +21,7 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
 
 ### 🔄 En Progreso
 
-- [ ] **[RAÚL / IRENE / CRISTINA]** Setup del repositorio de frontend (React 18 + Vite + TypeScript + Tailwind + Shadcn UI)
+- [x] **[RAÚL / IRENE / CRISTINA]** Setup del repositorio de frontend (React 18 + Vite + TypeScript + Tailwind + Shadcn UI)
   - Inicializar proyecto con `npm create vite@latest`
   - Configurar Tailwind CSS + Shadcn UI
   - Instalar dependencias: React Router DOM v6, TanStack Query, Zustand, React Hook Form, Zod, Lucide React
@@ -50,7 +50,7 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
   - Middleware `auth.middleware.ts` — verificar JWT en cabecera Authorization
   - Middleware `role.middleware.ts` — guard de permisos por rol (NURSE, DOCTOR, TCAE)
 
-- [ ] **[RAÚL]** Implementar pantalla de Login en el frontend
+- [x] **[IRENE]** Implementar pantalla de Login en el frontend
   - Formulario con React Hook Form + Zod (validación de email y contraseña)
   - Integración con `POST /api/auth/login`
   - Almacenamiento del token en Zustand (authStore)
