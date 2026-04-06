@@ -1,34 +1,19 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Loader2 } from 'lucide-react';
+import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { SEED_CREDENTIALS } from '@/lib/constants';
 import type { LoginResponse } from '@/lib/types';
 
-const schema = z.object({
-  email:    z.string().email('Email inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
-});
-
-type FormValues = z.infer<typeof schema>;
-
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const [selectedUser, setSelectedUser] = useState('');
 
   const loginMutation = useMutation({
-    mutationFn: (data: FormValues) =>
+    mutationFn: (data: { email: string; password: string }) =>
       api.post<LoginResponse>('/auth/login', data),
     onSuccess: (result) => {
       setAuth(result.token, result.user);
@@ -36,107 +21,126 @@ export default function LoginPage() {
     },
   });
 
-  const onSubmit = (data: FormValues) => loginMutation.mutate(data);
-
-  const fillCredentials = (email: string, password: string) => {
-    setValue('email', email);
-    setValue('password', password);
+  const handleLogin = () => {
+    const creds = SEED_CREDENTIALS.find((c) => c.email === selectedUser);
+    if (creds) loginMutation.mutate({ email: creds.email, password: creds.password });
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div style={{
+      height: '100vh',
+      width: '100vw',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'white',
+      padding: '2rem',
+      margin: 0,
+      position: 'fixed',
+      top: 0,
+      left: 0,
+    }}>
+      <div
+        className="w-full max-w-xl p-14"
+        style={{
+          backgroundColor: '#f3f4f6',
+          borderRadius: '1.5rem',
+          border: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: [
+            '0 1px 2px rgba(0,0,0,0.4)',
+            '0 4px 8px rgba(0,0,0,0.3)',
+            '0 12px 24px rgba(0,0,0,0.25)',
+            '0 24px 48px rgba(0,0,0,0.2)',
+          ].join(', '),
+        }}
+      >
 
-        {/* Logo */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
-            <Activity className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">NexoMed</h1>
-          <p className="text-muted-foreground mt-1">Sistema de Gestión Clínica</p>
+        {/* Logo y título */}
+        <div className="flex flex-col items-center mb-12">
+          <svg
+            viewBox="0 0 40 30"
+            fill="none"
+            stroke="#0f172a"
+            strokeWidth="2"
+            width={72}
+            height={72}
+          >
+            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+            <path d="M12 8v8M8 12h8" />
+          </svg>
+          <h1 className="text-4xl font-bold text-[#0f172a] tracking-tight mt-5">
+            NexoMed
+          </h1>
+          <p className="text-gray-500 mt-2 text-base text-center">
+            Sistema de Gestión Clínica Hospitalaria
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-card border border-border rounded-xl p-8 space-y-6">
+        {/* Formulario */}
+        <div className="space-y-7">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Iniciar sesión</h2>
-            <p className="text-sm text-muted-foreground mt-1">Accede con tus credenciales hospitalarias</p>
+            <label className="block text-base font-semibold text-[#0f172a] mb-2">
+              Seleccionar Usuario
+            </label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-white appearance-none cursor-pointer hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0f172a]/20 transition-colors text-[#0f172a] text-base"
+              >
+                <option value="">-- Selecciona un usuario --</option>
+                {SEED_CREDENTIALS.map((c) => (
+                  <option key={c.email} value={c.email}>
+                    {c.label} ({c.role})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Error global */}
+          {/* Error */}
           {loginMutation.isError && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm">
-              {loginMutation.error instanceof Error
-                ? loginMutation.error.message
-                : 'Error al iniciar sesión'}
+            <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+              <p className="text-sm text-red-600">
+                {loginMutation.error instanceof Error
+                  ? loginMutation.error.message
+                  : 'Error al iniciar sesión'}
+              </p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="usuario@nexomed.es"
-                className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-destructive text-xs mt-1">{errors.email.message}</p>
-              )}
-            </div>
+          <button
+            type="button"
+            onClick={handleLogin}
+            disabled={!selectedUser || loginMutation.isPending}
+            className="w-full bg-[#0f172a] text-white py-4 rounded-xl text-base font-semibold cursor-pointer transition-colors duration-150 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-black active:bg-black"
+          >
+            {loginMutation.isPending
+              ? <Loader2 className="w-5 h-5 animate-spin" />
+              : <Lock className="w-5 h-5" />
+            }
+            Iniciar Sesión
+          </button>
 
-            <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                Contraseña
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-destructive text-xs mt-1">{errors.password.message}</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loginMutation.isPending}
-              className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-            >
-              {loginMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Entrar
-            </button>
-          </form>
-
-          {/* Acceso rápido por rol (credenciales seed) */}
-          <div className="border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground mb-3 text-center">Acceso rápido (datos de prueba)</p>
-            <div className="grid grid-cols-3 gap-2">
-              {SEED_CREDENTIALS.map((cred) => (
-                <button
-                  key={cred.role}
-                  type="button"
-                  onClick={() => fillCredentials(cred.email, cred.password)}
-                  className="text-xs bg-secondary text-secondary-foreground border border-border rounded-lg py-2 px-1 hover:bg-accent transition-colors font-medium"
-                >
-                  {cred.label}
-                </button>
-              ))}
-            </div>
+          {/* Info */}
+          <div className="pt-7 border-t border-gray-200 space-y-2.5">
+            <p className="text-sm text-gray-500">
+              💡 <strong className="text-gray-700">Demo:</strong> Selecciona cualquier usuario para acceder
+            </p>
+            <p className="text-sm text-gray-500">
+              👨‍⚕️ Personal: 1 Médico, 5 Enfermeros, 2 TCAE
+            </p>
+            <p className="text-sm text-gray-500">
+              🏥 Planta única con 12 habitaciones (101-112 A/B)
+            </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">
-          NexoMed v1.0 · UAB LIS 2026 · Solo uso hospitalario interno
+        {/* Footer */}
+        <p className="mt-10 text-center text-sm text-gray-400">
+          NexoMed v1.0 — Sistema Hospitalario Integrado
         </p>
       </div>
     </div>
