@@ -10,6 +10,15 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-    "@": path.resolve(__dirname, "./src/app"),    },
+      '@': path.resolve(__dirname, './src/app'),
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 })
