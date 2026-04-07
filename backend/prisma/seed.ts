@@ -44,7 +44,7 @@ async function main() {
     },
   });
 
-  const tcae = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'tcae.sanchez@nexomed.es' },
     update: { name: 'Laura Sánchez' },
     create: {
@@ -124,7 +124,7 @@ async function main() {
     {
       name: 'Pedro Sánchez Torres',
       dob: new Date('1965-11-08'),
-      diagnosis: 'IAM - Stent coronario',
+      diagnosis: 'IAM crítico - Stent coronario',
       allergies: ['Latex'],
       bedIndex: 2,
     },

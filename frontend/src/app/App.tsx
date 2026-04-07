@@ -10,6 +10,8 @@ import BedMapPage from '@/pages/BedMapPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import DiagnosticTestsPage from '@/pages/DiagnosticTestsPage';
 import UnifiedHistoryPage from '@/pages/UnifiedHistoryPage';
+import NursePage from '@/pages/NursePage';
+import TCAEPage from '@/pages/TCAEPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +64,8 @@ export default function App() {
             <Route path="/dashboard"     element={<DashboardPage />} />
             <Route path="/patients"      element={<PatientsPage />} />
             <Route path="/beds"          element={<BedMapPage />} />
+            <Route path="/nurse"         element={<NursePage />} />
+            <Route path="/vitals"        element={<TCAEPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/tests"         element={<DiagnosticTestsPage />} />
             <Route path="/history"       element={<UnifiedHistoryPage />} />

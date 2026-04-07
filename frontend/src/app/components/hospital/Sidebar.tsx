@@ -9,6 +9,8 @@ import {
   Activity,
   LogOut,
   Building2,
+  ClipboardList,
+  Stethoscope,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/lib/constants';
@@ -22,12 +24,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',      label: 'Dashboard',           icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/beds',           label: 'Mapa de Camas',       icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/patients',       label: 'Pacientes',           icon: Users,           roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/notifications',  label: 'Notificaciones',      icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
-  { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,       roles: ['DOCTOR'] },
-  { to: '/history',        label: 'Historial',           icon: History,         roles: ['NURSE', 'DOCTOR'] },
+  { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
+  { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
+  { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
+  { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR'] },
+  { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
 ];
 
 export function Sidebar() {
