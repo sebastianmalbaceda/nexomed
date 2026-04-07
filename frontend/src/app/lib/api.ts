@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/store/authStore';
 
 const BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api';
+  (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 /** Generic fetch wrapper — adds Bearer token and unwraps { data: T } */
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -32,9 +32,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new Error(body.error ?? `HTTP ${response.status}`);
   }
 
-  // Backend always responds { data: T }
-  const json = await response.json() as { data: T };
-  return json.data;
+  const json = await response.json() as T;
+  return json;
 }
 
 export const api = {
