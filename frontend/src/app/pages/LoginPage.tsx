@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, AlertCircle, Loader2, ShieldPlus } from 'lucide-react'; // Añadido ShieldPlus
+import { User, Lock, Loader2, ShieldPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { SEED_CREDENTIALS } from '@/lib/constants';
