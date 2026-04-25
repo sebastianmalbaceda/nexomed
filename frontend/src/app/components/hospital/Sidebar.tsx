@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
   { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
   { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
-  { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR'] },
+  { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },
   { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
 ];
 
