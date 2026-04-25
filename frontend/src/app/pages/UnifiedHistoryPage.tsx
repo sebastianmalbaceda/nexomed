@@ -1,21 +1,38 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { History, Loader2, ChevronDown, Clock } from 'lucide-react';
+import { History, Loader2, ChevronDown, Clock, Pill, Activity, FileText, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CARE_RECORD_TYPE_LABELS } from '@/lib/constants';
-import type { Patient, CareRecord } from '@/lib/types';
+import { useAuthStore } from '@/store/authStore';
+import type { Patient, CareRecord, Medication } from '@/lib/types';
 
-const TYPE_COLORS: Record<string, string> = {
-  constante: 'bg-primary/10 text-primary',
-  cura:      'bg-chart-1/20 text-red-400',
-  higiene:   'bg-chart-3/20 text-green-400',
-  balance:   'bg-chart-2/20 text-blue-400',
-  ingesta:   'bg-chart-4/20 text-yellow-400',
+const TYPE_BADGE: Record<string, string> = {
+  constante: 'bg-blue-100 text-blue-700 border-blue-200',
+  cura:      'bg-orange-100 text-orange-700 border-orange-200',
+  higiene:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+  balance:   'bg-sky-100 text-sky-700 border-sky-200',
+  ingesta:   'bg-amber-100 text-amber-700 border-amber-200',
+};
+const TYPE_DOT: Record<string, string> = {
+  constante: 'bg-blue-500',
+  cura:      'bg-orange-500',
+  higiene:   'bg-emerald-500',
+  balance:   'bg-sky-500',
+  ingesta:   'bg-amber-500',
+};
+const TYPE_PILL_ACTIVE: Record<string, string> = {
+  constante: 'bg-blue-500 text-white border-blue-500',
+  cura:      'bg-orange-500 text-white border-orange-500',
+  higiene:   'bg-emerald-500 text-white border-emerald-500',
+  balance:   'bg-sky-500 text-white border-sky-500',
+  ingesta:   'bg-amber-500 text-white border-amber-500',
 };
 
 export default function UnifiedHistoryPage() {
+  const { user } = useAuthStore();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'care' | 'meds'>('care');
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
@@ -28,125 +45,228 @@ export default function UnifiedHistoryPage() {
     enabled: selectedPatientId !== '',
   });
 
-  const filtered = typeFilter
-    ? records.filter((r) => r.type === typeFilter)
-    : records;
+  const { data: medications = [], isLoading: loadingMeds } = useQuery({
+    queryKey: ['medications', selectedPatientId],
+    queryFn: () => api.get<Medication[]>(`/medications/${selectedPatientId}`),
+    enabled: selectedPatientId !== '' && (user?.role === 'DOCTOR' || user?.role === 'NURSE'),
+  });
 
+  const filtered = typeFilter ? records.filter((r) => r.type === typeFilter) : records;
   const uniqueTypes = Array.from(new Set(records.map((r) => r.type)));
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId);
+  const isDoctor = user?.role === 'DOCTOR';
+  const showMedsTab = isDoctor || user?.role === 'NURSE';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Historial Unificado</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Registro de cuidados y constantes por paciente
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+          {isDoctor ? 'Historial Clínico Completo' : 'Historial Unificado'}
+        </h1>
+        <p className="text-slate-500 text-sm font-medium mt-1">
+          {isDoctor ? 'Acceso completo al historial clínico — MED-RF1' : 'Registro de cuidados y constantes por paciente'}
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        {/* Patient selector */}
+      {/* Selector + counters */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative">
           <select
             value={selectedPatientId}
-            onChange={(e) => { setSelectedPatientId(e.target.value); setTypeFilter(''); }}
+            onChange={(e) => { setSelectedPatientId(e.target.value); setTypeFilter(''); setActiveTab('care'); }}
             disabled={loadingPatients}
-            className="appearance-none bg-card border border-border rounded-lg px-4 py-2.5 pr-9 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 min-w-56"
+            className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-56"
           >
             <option value="">— Seleccionar paciente —</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
 
-        {/* Type filter */}
-        {uniqueTypes.length > 0 && (
-          <div className="relative">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="appearance-none bg-card border border-border rounded-lg px-4 py-2.5 pr-9 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">Todos los tipos</option>
-              {uniqueTypes.map((t) => (
-                <option key={t} value={t}>{CARE_RECORD_TYPE_LABELS[t] ?? t}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        {selectedPatientId && (
+          <div className="flex gap-2 ml-auto">
+            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl font-bold">
+              📋 {records.length} registros
+            </span>
+            {medications.length > 0 && (
+              <span className="text-xs bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-xl font-bold">
+                💊 {medications.length} medicamentos
+              </span>
+            )}
           </div>
         )}
       </div>
 
+      {/* MED-RF1: Clinical summary */}
+      {selectedPatient && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-slate-900 px-5 py-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-2xl shrink-0">
+              {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-white">{selectedPatient.name}</p>
+              <p className="text-xs text-slate-400">Historial clínico completo</p>
+            </div>
+            <FileText className="w-5 h-5 text-slate-400 shrink-0" />
+          </div>
+          <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            {[
+              { label: 'Diagnóstico', value: selectedPatient.diagnosis, color: '' },
+              { label: 'Ingreso', value: new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES'), color: '' },
+              { label: 'Cama', value: selectedPatient.bed ? `Hab. ${selectedPatient.bed.room}${selectedPatient.bed.letter}` : 'Sin asignar', color: '' },
+              {
+                label: 'Alergias',
+                value: selectedPatient.allergies.length > 0 ? selectedPatient.allergies.join(', ') : 'Ninguna conocida',
+                color: selectedPatient.allergies.length > 0 ? 'text-red-600 font-black' : 'text-emerald-600',
+              },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className={`font-bold text-slate-800 text-xs leading-snug ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!selectedPatientId ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3 bg-card border border-border rounded-xl">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-slate-200 rounded-2xl">
           <History className="w-12 h-12 opacity-30" />
-          <p>Selecciona un paciente para ver su historial</p>
-        </div>
-      ) : loadingRecords ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3 bg-card border border-border rounded-xl">
-          <History className="w-12 h-12 opacity-30" />
-          <p>Sin registros{typeFilter ? ' de este tipo' : ''}</p>
+          <p className="font-medium">Selecciona un paciente para ver su historial</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-border text-xs text-muted-foreground">
-            {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
-          </div>
+        <>
+          {/* Tabs */}
+          {showMedsTab && (
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
+              <button
+                onClick={() => setActiveTab('care')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'care' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Activity className="w-4 h-4" />Cuidados y Constantes
+              </button>
+              <button
+                onClick={() => setActiveTab('meds')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'meds' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Pill className="w-4 h-4" />Medicación
+              </button>
+            </div>
+          )}
 
-          <ul className="divide-y divide-border">
-            {filtered.map((record) => (
-              <li key={record.id} className="px-5 py-4 flex gap-4">
-                {/* Timeline dot */}
-                <div className="flex flex-col items-center pt-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
-                  <div className="w-px flex-1 bg-border mt-1" />
-                </div>
-
-                <div className="flex-1 min-w-0 pb-2">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        TYPE_COLORS[record.type] ?? 'bg-muted text-muted-foreground'
+          {activeTab === 'care' && (
+            <>
+              {/* Type filter chips */}
+              {uniqueTypes.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setTypeFilter('')}
+                    className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${typeFilter === '' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Todos ({records.length})
+                  </button>
+                  {uniqueTypes.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTypeFilter(typeFilter === t ? '' : t)}
+                      className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${
+                        typeFilter === t
+                          ? (TYPE_PILL_ACTIVE[t] ?? 'bg-slate-900 text-white border-slate-900')
+                          : `${TYPE_BADGE[t] ?? 'bg-white border-slate-200 text-slate-500'} hover:opacity-80`
                       }`}
                     >
-                      {CARE_RECORD_TYPE_LABELS[record.type] ?? record.type}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                      <Clock className="w-3 h-3" />
-                      {new Date(record.recordedAt).toLocaleString('es-ES', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-foreground font-medium">
-                    {record.value}
-                    {record.unit && (
-                      <span className="text-muted-foreground font-normal"> {record.unit}</span>
-                    )}
-                  </p>
-
-                  {record.notes && (
-                    <p className="text-xs text-muted-foreground mt-1">{record.notes}</p>
-                  )}
-
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    Registrado por: {record.recordedBy}
-                  </p>
+                      {CARE_RECORD_TYPE_LABELS[t] ?? t} ({records.filter((r) => r.type === t).length})
+                    </button>
+                  ))}
                 </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+              )}
+
+              {loadingRecords ? (
+                <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-slate-200 rounded-2xl">
+                  <History className="w-12 h-12 opacity-30" />
+                  <p className="font-medium">Sin registros{typeFilter ? ' de este tipo' : ''}</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <p className="text-xs text-slate-400 font-bold">{filtered.length} registro{filtered.length !== 1 ? 's' : ''}</p>
+                  </div>
+                  <ul className="divide-y divide-slate-100">
+                    {filtered.map((record) => (
+                      <li key={record.id} className="px-5 py-4 flex gap-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex flex-col items-center pt-1">
+                          <div className={`w-3 h-3 rounded-full shrink-0 ${TYPE_DOT[record.type] ?? 'bg-slate-400'}`} />
+                          <div className="w-px flex-1 bg-slate-100 mt-1" />
+                        </div>
+                        <div className="flex-1 min-w-0 pb-2">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${TYPE_BADGE[record.type] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                              {CARE_RECORD_TYPE_LABELS[record.type] ?? record.type}
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0 font-bold">
+                              <Clock className="w-3 h-3" />
+                              {new Date(record.recordedAt).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-800 font-bold">
+                            {record.value}
+                            {record.unit && <span className="text-slate-400 font-normal"> {record.unit}</span>}
+                          </p>
+                          {record.notes && <p className="text-xs text-slate-400 mt-1 font-medium">{record.notes}</p>}
+                          <p className="text-[10px] text-slate-400 mt-1 font-bold flex items-center gap-1">
+                            <User className="w-3 h-3" />{record.recordedBy}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'meds' && (
+            <div className="bg-white border border-slate-200 border-t-4 border-t-orange-400 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-xl bg-orange-500 flex items-center justify-center">
+                  <Pill className="w-3.5 h-3.5 text-white" />
+                </div>
+                <h3 className="font-black text-slate-900">Medicación activa</h3>
+              </div>
+              {loadingMeds ? (
+                <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
+              ) : medications.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-10 font-medium">Sin medicación activa</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {medications.map((m) => (
+                    <li key={m.id} className="px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-black text-slate-900">{m.drugName}</p>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded text-white ${m.active ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                            {m.active ? 'ACTIVO' : 'INACTIVO'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 font-medium">{m.dose} · {m.route} · cada {m.frequencyHrs}h</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-wide">Inicio</p>
+                        <p className="text-xs font-bold text-slate-700">
+                          {new Date(m.startTime).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}{' '}
+                          {new Date(m.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
