@@ -228,7 +228,7 @@ export default function BedMapPage() {
                       <h3 className="text-lg font-bold text-white leading-tight">
                         {selectedBed.patient.name}
                       </h3>
-                      <p className="text-blue-300 text-xs font-bold mt-1">NHC: 7721092-A</p>
+                      <p className="text-blue-300 text-xs font-bold mt-1">NHC: {selectedBed.patient.dni || selectedBed.patient.id.slice(0, 8).toUpperCase()}</p>
                     </div>
                   </div>
 

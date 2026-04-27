@@ -6,7 +6,8 @@ import {
   getPatientById,
   createPatient,
   updatePatient,
-  dischargePatient
+  dischargePatient,
+  getPatientVitals
 } from '../controllers/patients.controller';
 import { getCareRecords } from '../controllers/careRecords.controller';
 import { getIncidents } from '../controllers/incidents.controller';
@@ -18,6 +19,9 @@ router.get('/', authenticate, getPatients);
 
 // GET /api/patients/:patientId/care-records — historial de cuidados (MED-RF1, SYS-RF2)
 router.get('/:patientId/care-records', authenticate, getCareRecords);
+
+// GET /api/patients/:patientId/vitals — constantes vitales del paciente
+router.get('/:patientId/vitals', authenticate, getPatientVitals);
 
 // GET /api/patients/:patientId/incidents — incidencias del paciente (alias)
 router.get('/:patientId/incidents', authenticate, getIncidents);

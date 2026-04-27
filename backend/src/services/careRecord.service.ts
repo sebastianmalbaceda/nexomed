@@ -30,31 +30,44 @@ export async function createCareRecordWithAntiDuplicate(
   notes: string | null,
   recordedById: string
 ) {
-  // Check for duplicate records within the last 15 minutes
-  const existingRecord = await checkDuplicateCareRecord(patientId, type);
+  return prisma.$transaction(async (tx) => {
+    const fifteenMinutesAgo = new Date(Date.now() - ANTI_DUPLICATE_WINDOW_MS);
 
-  if (existingRecord) {
-    return {
-      duplicate: true,
-      existingRecord,
-      message: `Ya existe un registro de tipo "${type}" para este paciente en los últimos 15 minutos`
-    };
-  }
+    const existingRecord = await tx.careRecord.findFirst({
+      where: {
+        patientId,
+        type,
+        recordedAt: {
+          gte: fifteenMinutesAgo
+        }
+      },
+      orderBy: {
+        recordedAt: 'desc'
+      }
+    });
 
-  // Create new care record
-  const careRecord = await prisma.careRecord.create({
-    data: {
-      patientId,
-      type,
-      value,
-      unit,
-      notes,
-      recordedById
+    if (existingRecord) {
+      return {
+        duplicate: true,
+        existingRecord,
+        message: `Ya existe un registro de tipo "${type}" para este paciente en los últimos 15 minutos`
+      };
     }
-  });
 
-  return {
-    duplicate: false,
-    careRecord
-  };
+    const careRecord = await tx.careRecord.create({
+      data: {
+        patientId,
+        type,
+        value,
+        unit,
+        notes,
+        recordedById
+      }
+    });
+
+    return {
+      duplicate: false,
+      careRecord
+    };
+  });
 }

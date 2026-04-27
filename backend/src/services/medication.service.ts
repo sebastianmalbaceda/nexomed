@@ -32,19 +32,30 @@ export async function reschedulePendingMedication(
   frequencyHrs: number,
   hoursToCover: number = 24
 ) {
-  // Delete pending schedules (not yet administered)
-  await prisma.medSchedule.deleteMany({
-    where: {
-      medicationId,
-      administeredAt: null
-    }
-  });
+  const schedules: { medicationId: string; scheduledAt: Date }[] = [];
+  const endTime = new Date(newStartTime.getTime() + hoursToCover * 60 * 60 * 1000);
+  let current = new Date(newStartTime);
 
-  // Generate new schedules from the new start time
-  return generateSchedulesForMedication(
-    medicationId,
-    newStartTime,
-    frequencyHrs,
-    hoursToCover
-  );
+  while (current < endTime) {
+    schedules.push({
+      medicationId,
+      scheduledAt: new Date(current)
+    });
+    current = new Date(current.getTime() + frequencyHrs * 60 * 60 * 1000);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.medSchedule.deleteMany({
+      where: {
+        medicationId,
+        administeredAt: null
+      }
+    });
+
+    if (schedules.length > 0) {
+      await tx.medSchedule.createMany({ data: schedules });
+    }
+
+    return schedules;
+  });
 }

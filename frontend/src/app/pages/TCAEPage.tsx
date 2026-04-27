@@ -325,25 +325,27 @@ export default function TCAEPage() {
                   <p className="text-sm text-slate-400 text-center py-6 font-medium">Sin medicación activa</p>
                 ) : (
                   <ul className="divide-y divide-slate-100">
-                    {medications.map((m) => {
+                    {(() => {
                       const now = Date.now();
-                      const past = (m.schedules ?? [])
-                        .filter((s) => new Date(s.scheduledAt).getTime() <= now)
-                        .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
-                      const lastDose = past[0];
-                      const isAdministered = !!lastDose?.administeredAt;
-                      return (
-                        <li key={m.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900">{m.drugName}</p>
-                            <p className="text-xs text-slate-400">{m.dose} · {m.route} · cada {m.frequencyHrs}h</p>
-                          </div>
-                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 text-white ${isAdministered ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                            {isAdministered ? '✓ ADMINISTRADO' : 'PENDIENTE'}
-                          </span>
-                        </li>
-                      );
-                    })}
+                      return medications.map((m) => {
+                        const past = (m.schedules ?? [])
+                          .filter((s) => new Date(s.scheduledAt).getTime() <= now)
+                          .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+                        const lastDose = past[0];
+                        const isAdministered = !!lastDose?.administeredAt;
+                        return (
+                          <li key={m.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900">{m.drugName}</p>
+                              <p className="text-xs text-slate-400">{m.dose} · {m.route} · cada {m.frequencyHrs}h</p>
+                            </div>
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 text-white ${isAdministered ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                              {isAdministered ? '✓ ADMINISTRADO' : 'PENDIENTE'}
+                            </span>
+                          </li>
+                        );
+                      });
+                    })()}
                   </ul>
                 )}
 

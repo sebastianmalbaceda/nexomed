@@ -52,12 +52,12 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
 
   try {
     if (dni) {
-      const existing = await prisma.patient.findUnique({ where: { dni } });
+      const existing = await prisma.patient.findFirst({ where: { dni } });
 
       if (existing) {
         // Re-ingreso: actualizar datos clínicos y asignar nueva cama
         const patient = await prisma.patient.update({
-          where: { dni },
+          where: { id: existing.id },
           data: {
             diagnosis,
             allergies,
@@ -120,6 +120,47 @@ export const dischargePatient = async (req: AuthRequest, res: Response) => {
       data: { bedId: null }
     });
     res.json(patient);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
+// GET /api/patients/:patientId/vitals — obtener vitales del paciente
+export const getPatientVitals = async (req: AuthRequest, res: Response) => {
+  const { patientId } = req.params as { patientId: string };
+  try {
+    const records = await prisma.careRecord.findMany({
+      where: { patientId },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    const vitalTypes: Record<string, string> = {
+      constante_tas: 'bloodPressureSystolic',
+      constante_tad: 'bloodPressureDiastolic',
+      constante_fc: 'heartRate',
+      constante_temp: 'temperature',
+    };
+
+    const groupedByTime = new Map<string, Record<string, number | null>>();
+    for (const record of records) {
+      if (!vitalTypes[record.type]) continue;
+      const key = record.recordedAt.toISOString();
+      if (!groupedByTime.has(key)) {
+        groupedByTime.set(key, { bloodPressureSystolic: null, bloodPressureDiastolic: null, heartRate: null, temperature: null });
+      }
+      const entry = groupedByTime.get(key)!;
+      const vitalKey = vitalTypes[record.type];
+      entry[vitalKey] = parseFloat(record.value) || null;
+    }
+
+    const vitals = Array.from(groupedByTime.entries()).map(([recordedAt, values]) => ({
+      id: patientId,
+      patientId,
+      recordedAt,
+      ...values,
+    }));
+
+    res.json(vitals);
   } catch (error) {
     return handlePrismaError(error, res);
   }

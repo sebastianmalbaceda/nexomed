@@ -129,7 +129,15 @@ export default function NursePage() {
   }
 
   const toggleAdmin = (medId: string, time: string) => {
-    setAdministered((prev) => { const s = new Set(prev); s.has(`${medId}__${time}`) ? s.delete(`${medId}__${time}`) : s.add(`${medId}__${time}`); return s; });
+    setAdministered((prev) => {
+      const s = new Set(prev);
+      if (s.has(`${medId}__${time}`)) {
+        s.delete(`${medId}__${time}`);
+      } else {
+        s.add(`${medId}__${time}`);
+      }
+      return s;
+    });
   };
 
   const pendingMeds = medications.reduce((acc, med) =>
