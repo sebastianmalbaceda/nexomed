@@ -62,7 +62,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard"     element={<DashboardPage />} />
-            <Route path="/patients"      element={<PatientsPage />} />
+<Route path="/patients"          element={<PatientsPage />} />
+            <Route path="/patients/:patientId" element={<PatientsPage />} />
             <Route path="/beds"          element={<BedMapPage />} />
             <Route path="/nurse"         element={<NursePage />} />
             <Route path="/vitals"        element={<TCAEPage />} />
