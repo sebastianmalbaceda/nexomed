@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TestTube, FlaskConical, ImageIcon, Loader2, ChevronDown,
   Plus, X, Calendar, CheckCircle2, Clock,
@@ -8,21 +8,16 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
-// ── Module-level state: persists across navigation (no backend) ──────────
-let storedLocalTests: DiagnosticTest[] = [];
-let mockId = 0;
-
 export default function DiagnosticTestsPage() {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
+  const queryClient = useQueryClient();
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [newType, setNewType] = useState<DiagnosticTestType>('LAB');
   const [newName, setNewName] = useState('');
   const [newDate, setNewDate] = useState('');
-  // Initialise from module-level so navigating back restores tests
-  const [localTests, setLocalTests] = useState<DiagnosticTest[]>(storedLocalTests);
   const [successMsg, setSuccessMsg] = useState('');
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
@@ -30,38 +25,36 @@ export default function DiagnosticTestsPage() {
     queryFn: () => api.get<Patient[]>('/patients'),
   });
 
-  const { data: apiTests = [], isLoading: loadingTests } = useQuery({
+  const { data: allTests = [], isLoading: loadingTests } = useQuery({
     queryKey: ['tests', selectedPatientId],
     queryFn: () => api.get<DiagnosticTest[]>(`/patients/${selectedPatientId}/tests`),
     enabled: selectedPatientId !== '',
   });
 
-  const allTests = [
-    ...apiTests,
-    ...localTests.filter((t) => t.patientId === selectedPatientId),
-  ];
   const labTests     = allTests.filter((t) => t.type === 'LAB');
   const imagingTests = allTests.filter((t) => t.type === 'IMAGING');
   const pendingCount = allTests.filter((t) => !t.result).length;
 
+  const scheduleMutation = useMutation({
+    mutationFn: (body: { patientId: string; type: string; name: string; scheduledAt: string }) =>
+      api.post<DiagnosticTest>('/tests', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+      setNewName(''); setNewDate('');
+      setShowForm(false);
+      setSuccessMsg('Prueba programada correctamente');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    },
+  });
+
   function handleSchedule() {
     if (!selectedPatientId || !newName.trim() || !newDate) return;
-    const test: DiagnosticTest = {
-      id: `local-${++mockId}`,
+    scheduleMutation.mutate({
       patientId: selectedPatientId,
       type: newType,
       name: newName.trim(),
       scheduledAt: new Date(newDate).toISOString(),
-      result: null,
-      requestedBy: user?.name ?? 'Médico/a',
-    };
-    const updated = [...localTests, test];
-    storedLocalTests = updated;      // persist at module level
-    setLocalTests(updated);
-    setNewName(''); setNewDate('');
-    setShowForm(false);
-    setSuccessMsg('Prueba programada correctamente');
-    setTimeout(() => setSuccessMsg(''), 3000);
+    });
   }
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
@@ -158,9 +151,12 @@ export default function DiagnosticTestsPage() {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
             </div>
           </div>
-          <button onClick={handleSchedule} disabled={!newName.trim() || !newDate}
+          <button onClick={handleSchedule} disabled={!newName.trim() || !newDate || scheduleMutation.isPending}
             className="flex items-center gap-2 bg-blue-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200">
-            <CheckCircle2 className="w-4 h-4" />Confirmar programación
+            {scheduleMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <CheckCircle2 className="w-4 h-4" />}
+            Confirmar programación
           </button>
         </div>
       )}
@@ -240,15 +236,11 @@ function TestSection({
       ) : (
         <ul className="divide-y divide-slate-100">
           {tests.map((t) => {
-            const isLocal = t.id.startsWith('local-');
             return (
               <li key={t.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2 min-w-0">
                     <p className="font-bold text-slate-900 text-sm truncate">{t.name}</p>
-                    {isLocal && (
-                      <span className="text-[10px] bg-blue-100 text-blue-700 font-black px-1.5 py-0.5 rounded-full shrink-0">NUEVA</span>
-                    )}
                   </div>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded shrink-0 text-white ${t.result ? 'bg-emerald-500' : 'bg-amber-500'}`}>
                     {t.result ? 'RESULTADO' : 'PENDIENTE'}
