@@ -7,76 +7,24 @@
 :root {
   --font-size: 16px;
   --radius: 1rem;
-  /* Colores NexoMed */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  
-  /* Colores de estado */
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.55 0.185 252);
 }
 
 @layer base {
   body {
-    /* Usamos un gris muy sutil de fondo para que las tarjetas blancas resalten */
-    @apply bg-[#f9fafb] text-foreground antialiased;
-    font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+    background-color: #f9fafb;
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  
+
   html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
   }
-}
-
-
-@layer utilities {
-  .animate-in {
-    animation-duration: 400 ms;
-    animation-fill-mode: both;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .fade-in {
-    animation-name: fadeIn;
-  }
-
-  .zoom-in-95 {
-    animation-name: zoomIn95;
-  }
-
-  .slide-in-from-right-4 {
-    animation-name: slideInFromRight;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes zoomIn95 {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  @keyframes slideInFromRight {
-    from { transform: translateX(1rem); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-}
-
-/* Mejora visual para los inputs del formulario */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  border-radius: 4px;
-  margin-right: 2px;
-  opacity: 0.6;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
 }
