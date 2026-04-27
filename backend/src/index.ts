@@ -13,6 +13,7 @@ import notificationRoutes from './routes/notifications.routes';
 import incidentRoutes from './routes/incidents.routes';
 import diagnosticTestRoutes from './routes/diagnosticTests.routes';
 import drugRoutes from './routes/drugs.routes';
+import scheduleRoutes from './routes/schedule.routes';
 
 dotenv.config();
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/tests', diagnosticTestRoutes);
 app.use('/api/drugs', drugRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`NexoMed backend corriendo en puerto ${PORT}`));

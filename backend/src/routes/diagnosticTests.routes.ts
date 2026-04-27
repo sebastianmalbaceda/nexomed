@@ -1,9 +1,35 @@
 // src/routes/diagnosticTests.routes.ts
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { getDiagnosticTests, createDiagnosticTest, addTestResult } from '../controllers/diagnosticTests.controller';
+import { getAllDiagnosticTests, getDiagnosticTests, createDiagnosticTest, addTestResult } from '../controllers/diagnosticTests.controller';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /tests:
+ *   get:
+ *     summary: Obtener vista global de pruebas diagnósticas
+ *     tags: [DiagnosticTests]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: patientId
+ *         schema: { type: string, format: uuid }
+ *       - in: query
+ *         name: type
+ *         schema: { type: string, enum: [LAB, IMAGING] }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [pending, completed] }
+ *       - in: query
+ *         name: date
+ *         schema: { type: string, example: 2026-04-27 }
+ *     responses:
+ *       200:
+ *         description: Lista global de pruebas
+ */
+router.get('/', authenticate, getAllDiagnosticTests);
 
 /**
  * @swagger
