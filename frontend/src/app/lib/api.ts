@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/store/authStore';
 
-const BASE_URL =
+export const BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 /** Generic fetch wrapper — adds Bearer token and unwraps { data: T } */

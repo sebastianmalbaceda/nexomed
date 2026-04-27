@@ -16,7 +16,7 @@ export const getIncidents = async (req: AuthRequest, res: Response) => {
         reportedBy: { select: { name: true, role: true } }
       }
     });
-    res.json(incidents);
+    res.json(incidents.map(i => ({ ...i, reportedBy: i.reportedBy?.name ?? '—' })));
   } catch (error) {
     return handlePrismaError(error, res);
   }

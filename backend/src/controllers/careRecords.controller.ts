@@ -46,7 +46,7 @@ export const getCareRecords = async (req: AuthRequest, res: Response) => {
       orderBy: { recordedAt: 'desc' },
       include: { recordedBy: { select: { name: true, role: true } } }
     });
-    res.json(records);
+    res.json(records.map(r => ({ ...r, recordedBy: r.recordedBy?.name ?? '—' })));
   } catch (error) {
     return handlePrismaError(error, res);
   }

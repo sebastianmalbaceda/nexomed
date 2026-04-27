@@ -1,9 +1,18 @@
 // src/routes/notifications.routes.ts
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { getNotifications, markAsRead, markAllAsRead } from '../controllers/notifications.controller';
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  streamNotifications,
+} from '../controllers/notifications.controller';
 
 const router = Router();
+
+// GET /api/notifications/stream — SSE en tiempo real (ENF-RF3)
+// Auth via ?token=... porque EventSource no soporta headers
+router.get('/stream', streamNotifications);
 
 /**
  * @swagger
