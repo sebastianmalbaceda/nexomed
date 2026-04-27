@@ -107,11 +107,11 @@ export function DashboardOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient table (2/3) */}
         <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h3 className="font-semibold text-foreground">Pacientes en planta</h3>
+          <div className="bg-slate-900 px-5 py-4 flex items-center justify-between border-b border-border">
+            <h3 className="font-semibold text-white">Pacientes en planta</h3>
             <button
               onClick={() => navigate('/patients')}
-              className="text-xs text-primary hover:underline flex items-center gap-1"
+              className="text-xs text-white hover:underline flex items-center gap-1"
             >
               Ver todos <ChevronRight className="w-3 h-3" />
             </button>
@@ -129,7 +129,7 @@ export function DashboardOverview() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wide">
+                  <tr className="bg-blue-600 text-white text-xs uppercase tracking-wide">
                     <th className="text-left px-5 py-2.5 font-medium">Paciente</th>
                     <th className="text-left px-5 py-2.5 font-medium hidden md:table-cell">Diagnóstico</th>
                     <th className="text-left px-5 py-2.5 font-medium">Cama</th>
@@ -170,11 +170,11 @@ export function DashboardOverview() {
 
         {/* Notifications panel (1/3) */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h3 className="font-semibold text-foreground">Notificaciones recientes</h3>
+          <div className="bg-slate-900 px-5 py-4 flex items-center justify-between border-b border-border">
+            <h3 className="font-semibold text-white">Notificaciones recientes</h3>
             <button
               onClick={() => navigate('/notifications')}
-              className="text-xs text-primary hover:underline flex items-center gap-1"
+              className="text-xs text-white hover:underline flex items-center gap-1"
             >
               Ver todas <ChevronRight className="w-3 h-3" />
             </button>
@@ -215,11 +215,11 @@ export function DashboardOverview() {
 
       {/* Mini bed map */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h3 className="font-semibold text-foreground">Estado de camas</h3>
+        <div className="bg-slate-900 px-5 py-4 flex items-center justify-between border-b border-border">
+          <h3 className="font-semibold text-white">Estado de camas</h3>
           <button
             onClick={() => navigate('/beds')}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
+            className="text-xs text-white hover:underline flex items-center gap-1"
           >
             Mapa completo <ChevronRight className="w-3 h-3" />
           </button>

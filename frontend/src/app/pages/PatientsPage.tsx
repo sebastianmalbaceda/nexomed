@@ -66,7 +66,7 @@ export default function PatientsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wide">
+                <tr className="bg-slate-900 text-white text-xs uppercase tracking-wide">
                   <th className="text-left px-5 py-3 font-medium">Paciente</th>
                   <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Edad</th>
                   <th className="text-left px-5 py-3 font-medium">Diagnóstico</th>
