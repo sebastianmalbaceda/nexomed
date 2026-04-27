@@ -101,8 +101,8 @@ export default function PatientsPage() {
               <ul className="space-y-3">
                 {patientMedications.map((med) => (
                   <li key={med.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
-                    <p className="font-medium text-foreground">{med.name}</p>
-                    <p className="text-muted-foreground mt-0.5">{med.dosage} — {med.frequency}</p>
+                    <p className="font-medium text-foreground">{med.drugName}</p>
+                    <p className="text-muted-foreground mt-0.5">{med.dose} — cada {med.frequencyHrs}h</p>
                   </li>
                 ))}
               </ul>
@@ -141,7 +141,7 @@ export default function PatientsPage() {
               <ul className="space-y-3">
                 {patientCareRecords.slice(0, 5).map((cr) => (
                   <li key={cr.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
-                    <p className="text-muted-foreground">{new Date(cr.createdAt).toLocaleString('es-ES')}</p>
+                    <p className="text-muted-foreground">{new Date(cr.recordedAt).toLocaleString('es-ES')}</p>
                     <p className="text-foreground mt-0.5">{cr.notes}</p>
                   </li>
                 ))}
@@ -224,7 +224,8 @@ export default function PatientsPage() {
                 {filtered.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-t border-border hover:bg-accent/30 transition-colors"
+                    onClick={() => navigate(`/patients/${p.id}`)}
+                    className="border-t border-border hover:bg-accent/30 transition-colors cursor-pointer"
                   >
                     <td className="px-5 py-3.5 font-medium text-foreground">{p.name}</td>
                     <td className="px-5 py-3.5 text-muted-foreground hidden md:table-cell">
