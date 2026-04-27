@@ -115,6 +115,17 @@ export interface DiagnosticTest {
   requestedBy: string;
 }
 
+export interface VitalSigns {
+  id: string;
+  patientId: string;
+  /** ISO date string */
+  recordedAt: string;
+  bloodPressureSystolic: number | null;
+  bloodPressureDiastolic: number | null;
+  heartRate: number | null;
+  temperature: number | null;
+}
+
 // ─── API response wrappers ─────────────────────────────────────────────────
 
 export interface ApiResponse<T> {

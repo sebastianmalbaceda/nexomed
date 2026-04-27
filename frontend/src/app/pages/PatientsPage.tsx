@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, AlertCircle, Loader2, Calendar, BedDouble } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { Patient } from '@/lib/types';
+import type { Patient, Medication, CareRecord, VitalSigns } from '@/lib/types';
 
 // Computed once at module load — avoids impure Date.now() calls during render
 const NOW_MS = new Date().getTime();
@@ -12,6 +13,8 @@ function ageFromDob(dob: string): number {
 }
 
 export default function PatientsPage() {
+  const { patientId } = useParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
 
   const { data: patients = [], isLoading, isError } = useQuery({
@@ -19,10 +22,152 @@ export default function PatientsPage() {
     queryFn: () => api.get<Patient[]>('/patients'),
   });
 
+  const { data: patientMedications = [] } = useQuery({
+    queryKey: ['medications', patientId],
+    queryFn: () => api.get<Medication[]>(`/patients/${patientId}/medications`),
+    enabled: !!patientId,
+  });
+
+  const { data: patientCareRecords = [] } = useQuery({
+    queryKey: ['careRecords', patientId],
+    queryFn: () => api.get<CareRecord[]>(`/patients/${patientId}/care-records`),
+    enabled: !!patientId,
+  });
+
+  const { data: patientVitals = [] } = useQuery({
+    queryKey: ['vitals', patientId],
+    queryFn: () => api.get<VitalSigns[]>(`/patients/${patientId}/vitals`),
+    enabled: !!patientId,
+  });
+
+  const selectedPatient = patientId ? patients.find((p) => p.id === patientId) : null;
+
   const filtered = patients.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.diagnosis.toLowerCase().includes(search.toLowerCase()),
   );
+
+  if (selectedPatient) {
+    return (
+      <div className="space-y-5">
+        <button
+          onClick={() => navigate('/patients')}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver a pacientes
+        </button>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{selectedPatient.name}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {selectedPatient.diagnosis}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedPatient.bed && (
+              <span className="inline-flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+                <BedDouble className="w-4 h-4" />
+                Hab. {selectedPatient.bed.room}{selectedPatient.bed.letter}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 text-sm bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
+              <Calendar className="w-4 h-4" />
+              Ingreso: {new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES')}
+            </span>
+          </div>
+        </div>
+
+        {selectedPatient.allergies.length > 0 && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-destructive">Alergias</p>
+              <p className="text-sm text-destructive/80">{selectedPatient.allergies.join(', ')}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Pill className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-foreground">Medicación activa</h3>
+            </div>
+            {patientMedications.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin medicación activa</p>
+            ) : (
+              <ul className="space-y-3">
+                {patientMedications.map((med) => (
+                  <li key={med.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
+                    <p className="font-medium text-foreground">{med.drugName}</p>
+                    <p className="text-muted-foreground mt-0.5">{med.dose} — cada {med.frequencyHrs}h</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-5 h-5 text-chart-2" />
+              <h3 className="font-semibold text-foreground">Constantes vitales</h3>
+            </div>
+            {patientVitals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin constantes registradas</p>
+            ) : (
+              <ul className="space-y-3">
+                {patientVitals.slice(0, 5).map((v) => (
+                  <li key={v.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
+                    <p className="text-muted-foreground">{new Date(v.recordedAt).toLocaleString('es-ES')}</p>
+                    <p className="text-foreground mt-0.5">
+                      TA: {v.bloodPressureSystolic}/{v.bloodPressureDiastolic} mmHg | FC: {v.heartRate} lpm | Tª: {v.temperature}ºC
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-chart-4" />
+              <h3 className="font-semibold text-foreground">Registro de cuidados</h3>
+            </div>
+            {patientCareRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin registros de cuidados</p>
+            ) : (
+              <ul className="space-y-3">
+                {patientCareRecords.slice(0, 5).map((cr) => (
+                  <li key={cr.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
+                    <p className="text-muted-foreground">{new Date(cr.recordedAt).toLocaleString('es-ES')}</p>
+                    <p className="text-foreground mt-0.5">{cr.notes}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+            <FileText className="w-5 h-5 text-chart-3" />
+            <h3 className="font-semibold text-foreground">Historial completo</h3>
+            <button
+              onClick={() => navigate(`/history?patientId=${selectedPatient.id}`)}
+              className="ml-auto text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              Ver historial <ArrowLeft className="w-3 h-3 rotate-180" />
+            </button>
+          </div>
+          <div className="p-5 text-sm text-muted-foreground">
+            Acceso rápido al historial unificado del paciente
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -79,7 +224,8 @@ export default function PatientsPage() {
                 {filtered.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-t border-border hover:bg-accent/30 transition-colors"
+                    onClick={() => navigate(`/patients/${p.id}`)}
+                    className="border-t border-border hover:bg-accent/30 transition-colors cursor-pointer"
                   >
                     <td className="px-5 py-3.5 font-medium text-foreground">{p.name}</td>
                     <td className="px-5 py-3.5 text-muted-foreground hidden md:table-cell">
