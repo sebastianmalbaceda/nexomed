@@ -4,12 +4,10 @@ import {
   BedDouble, 
   Search, 
   X, 
-  Calendar, 
   Activity, 
   Loader2, 
   LogOut, 
   UserPlus, 
-  AlertCircle,
   Clock
 } from 'lucide-react';
 import { api } from '@/lib/api';

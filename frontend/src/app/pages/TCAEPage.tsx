@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity, AlertCircle, AlertTriangle, CheckCircle2, Loader2, User, Clock,
-  Pill, ShieldAlert, Utensils, BedDouble, FileWarning,
+  Activity, AlertCircle, AlertTriangle, CheckCircle2, Loader2, Clock,
+  Pill, FileWarning,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Patient, CareRecord, Medication } from '@/lib/types';
