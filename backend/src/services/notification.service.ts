@@ -54,13 +54,24 @@ export async function notifyNursesAboutDiagnosticTest(
     return;
   }
 
-  await prisma.notification.createMany({
-    data: nurses.map(nurse => ({ userId: nurse.id, type, message, relatedPatientId: patientId }))
-  });
+  const notifications = nurses.map(nurse => ({
+    userId: nurse.id,
+    type,
+    message,
+    relatedPatientId: patientId
+  }));
+
+  await prisma.notification.createMany({ data: notifications });
 
   const createdAt = new Date().toISOString();
   for (const nurse of nurses) {
-    notificationBus.emit('notification', { userId: nurse.id, type, message, relatedPatientId: patientId, createdAt });
+    notificationBus.emit('notification', {
+      userId: nurse.id,
+      type,
+      message,
+      relatedPatientId: patientId,
+      createdAt,
+    });
   }
   console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
 }

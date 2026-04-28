@@ -137,12 +137,13 @@ export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { name: true } });
-    const typeLabel = type === 'LAB' ? 'Laboratorio' : 'Imagen';
+    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+    const typeLabel = type === 'LAB' ? 'Laboratorio' : 'Diagnóstico por imagen';
+
     await notifyNursesAboutDiagnosticTest(
       patientId,
-      'DIAG_NEW',
-      `Nueva prueba diagnóstica (${typeLabel}): ${name} para ${patient?.name ?? 'paciente'}`
+      'TEST_NEW',
+      `Nueva prueba de ${typeLabel} programada para ${patient?.name ?? 'paciente'}: ${name}`
     );
 
     res.status(201).json(test);
