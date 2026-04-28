@@ -31,14 +31,18 @@ model User {
 }
 
 model Patient {
-  id            String    @id @default(uuid())
-  name          String
-  dob           DateTime
-  diagnosis     String
-  allergies     String[]
-  admissionDate DateTime  @default(now())
-  bedId         String?   @unique
-  bed           Bed?      @relation(fields: [bedId], references: [id])
+  id                   String    @id @default(uuid())
+  dni                  String?   @unique
+  name                 String
+  dob                  DateTime
+  diagnosis            String
+  allergies            String[]
+  dietRestriction      String?
+  isolationRestriction String?
+  mobilityRestriction  String?
+  admissionDate        DateTime  @default(now())
+  bedId                String?   @unique
+  bed                  Bed?      @relation(fields: [bedId], references: [id])
 
   medications      Medication[]
   careRecords      CareRecord[]

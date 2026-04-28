@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity, AlertCircle, AlertTriangle, CheckCircle2, Loader2, User, Clock,
-  Pill, ShieldAlert, Utensils, BedDouble, FileWarning,
+  Activity, AlertCircle, AlertTriangle, CheckCircle2, Loader2, Clock,
+  Pill, FileWarning,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { Patient, CareRecord, Medication } from '@/lib/types';
+import type { Patient, CareRecord, Medication, Incident } from '@/lib/types';
 
 // ── Vitals ──────────────────────────────────────────────────────────────────
 const VITAL_FIELDS = [
@@ -51,27 +51,50 @@ interface Restriction {
   classes: string;
   badgeColor: string;
 }
+const DIET_CLASSES = 'bg-amber-50 border-amber-300 text-amber-900';
+const DIET_BADGE = 'bg-amber-400';
+const ISOLATION_CLASSES = 'bg-red-50 border-red-300 text-red-900';
+const ISOLATION_BADGE = 'bg-red-500';
+const MOBILITY_CLASSES = 'bg-blue-50 border-blue-300 text-blue-900';
+const MOBILITY_BADGE = 'bg-blue-500';
+
 function getRestrictions(p: Patient): Restriction[] {
-  const diag = p.diagnosis.toLowerCase();
   const res: Restriction[] = [];
-  if (/diabet|glucos|insul/.test(diag))
-    res.push({ type: 'diet', label: 'Dieta diabética', detail: 'Sin azúcares simples · Control glucémico', emoji: '🍽️', classes: 'bg-amber-50 border-amber-300 text-amber-900', badgeColor: 'bg-amber-400' });
-  else if (/card|hipert|tens|coronar/.test(diag))
-    res.push({ type: 'diet', label: 'Dieta hiposódica', detail: 'Reducción de sodio · Sin procesados', emoji: '🧂', classes: 'bg-amber-50 border-amber-300 text-amber-900', badgeColor: 'bg-amber-400' });
-  else if (/renal|riñ|nefr/.test(diag))
-    res.push({ type: 'diet', label: 'Dieta hipoproteica', detail: 'Control de proteínas y potasio', emoji: '⚖️', classes: 'bg-amber-50 border-amber-300 text-amber-900', badgeColor: 'bg-amber-400' });
-  else if (p.allergies.length > 0)
-    res.push({ type: 'diet', label: `Alergia: ${p.allergies[0]}`, detail: 'Verificar todos los ingredientes', emoji: '🚫', classes: 'bg-amber-50 border-amber-300 text-amber-900', badgeColor: 'bg-amber-400' });
 
-  if (/infec|seps|neumoni|covid|gripe|bacteria|mrsa/.test(diag))
-    res.push({ type: 'isolation', label: 'Aislamiento de contacto', detail: 'Guantes y bata obligatorios', emoji: '😷', classes: 'bg-red-50 border-red-300 text-red-900', badgeColor: 'bg-red-500' });
-  else if (/tuberc|tbc/.test(diag))
-    res.push({ type: 'isolation', label: 'Aislamiento respiratorio', detail: 'Mascarilla FFP2 obligatoria', emoji: '😷', classes: 'bg-red-50 border-red-300 text-red-900', badgeColor: 'bg-red-500' });
+  // TCAE-RF2: prefer explicit DB-stored restrictions; fall back to inference
+  if (p.dietRestriction) {
+    res.push({ type: 'diet', label: p.dietRestriction, detail: 'Restricción dietética', emoji: '🍽️', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+  } else {
+    const diag = p.diagnosis.toLowerCase();
+    if (/diabet|glucos|insul/.test(diag))
+      res.push({ type: 'diet', label: 'Dieta diabética', detail: 'Sin azúcares simples · Control glucémico', emoji: '🍽️', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+    else if (/card|hipert|tens|coronar/.test(diag))
+      res.push({ type: 'diet', label: 'Dieta hiposódica', detail: 'Reducción de sodio · Sin procesados', emoji: '🧂', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+    else if (/renal|riñ|nefr/.test(diag))
+      res.push({ type: 'diet', label: 'Dieta hipoproteica', detail: 'Control de proteínas y potasio', emoji: '⚖️', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+    else if (p.allergies.length > 0)
+      res.push({ type: 'diet', label: `Alergia: ${p.allergies[0]}`, detail: 'Verificar todos los ingredientes', emoji: '🚫', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+  }
 
-  if (/fractur|artro|prótesis|protesis|post.?op|cirug/.test(diag))
-    res.push({ type: 'mobility', label: 'Movilización asistida', detail: 'No movilizar sin supervisión', emoji: '🛏️', classes: 'bg-blue-50 border-blue-300 text-blue-900', badgeColor: 'bg-blue-500' });
-  else if (/trombo|embolia/.test(diag))
-    res.push({ type: 'mobility', label: 'Reposo relativo', detail: 'Medias de compresión obligatorias', emoji: '🦵', classes: 'bg-blue-50 border-blue-300 text-blue-900', badgeColor: 'bg-blue-500' });
+  if (p.isolationRestriction) {
+    res.push({ type: 'isolation', label: p.isolationRestriction, detail: 'Protocolo de aislamiento', emoji: '😷', classes: ISOLATION_CLASSES, badgeColor: ISOLATION_BADGE });
+  } else {
+    const diag = p.diagnosis.toLowerCase();
+    if (/infec|seps|neumoni|covid|gripe|bacteria|mrsa/.test(diag))
+      res.push({ type: 'isolation', label: 'Aislamiento de contacto', detail: 'Guantes y bata obligatorios', emoji: '😷', classes: ISOLATION_CLASSES, badgeColor: ISOLATION_BADGE });
+    else if (/tuberc|tbc/.test(diag))
+      res.push({ type: 'isolation', label: 'Aislamiento respiratorio', detail: 'Mascarilla FFP2 obligatoria', emoji: '😷', classes: ISOLATION_CLASSES, badgeColor: ISOLATION_BADGE });
+  }
+
+  if (p.mobilityRestriction) {
+    res.push({ type: 'mobility', label: p.mobilityRestriction, detail: 'Restricción de movilidad', emoji: '🛏️', classes: MOBILITY_CLASSES, badgeColor: MOBILITY_BADGE });
+  } else {
+    const diag = p.diagnosis.toLowerCase();
+    if (/fractur|artro|prótesis|protesis|post.?op|cirug/.test(diag))
+      res.push({ type: 'mobility', label: 'Movilización asistida', detail: 'No movilizar sin supervisión', emoji: '🛏️', classes: MOBILITY_CLASSES, badgeColor: MOBILITY_BADGE });
+    else if (/trombo|embolia/.test(diag))
+      res.push({ type: 'mobility', label: 'Reposo relativo', detail: 'Medias de compresión obligatorias', emoji: '🦵', classes: MOBILITY_CLASSES, badgeColor: MOBILITY_BADGE });
+  }
 
   return res;
 }
@@ -84,8 +107,6 @@ const INCIDENT_TYPES = [
   { value: 'FALL',            label: 'Caída del paciente' },
   { value: 'OTHER',           label: 'Otro incidente' },
 ];
-interface LocalIncident { id: string; type: string; description: string; reportedAt: string; }
-let incCounter = 0;
 
 export default function TCAEPage() {
   const qc = useQueryClient();
@@ -94,10 +115,10 @@ export default function TCAEPage() {
   const [notes, setNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
-  const [incidentsByPatient, setIncidentsByPatient] = useState<Record<string, LocalIncident[]>>({});
   const [incidentType, setIncidentType] = useState('MED_REFUSAL');
   const [incidentDesc, setIncidentDesc] = useState('');
   const [incidentSuccess, setIncidentSuccess] = useState('');
+  const [incidentError, setIncidentError] = useState('');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
 
   const { data: patients = [], isLoading, isError } = useQuery({
@@ -115,6 +136,28 @@ export default function TCAEPage() {
     queryKey: ['medications', selectedId],
     queryFn: () => api.get<Medication[]>(`/medications/${selectedId}`),
     enabled: !!selectedId,
+  });
+  const { data: patientIncidents = [] } = useQuery({
+    queryKey: ['incidents', selectedId],
+    queryFn: () => api.get<Incident[]>(`/incidents/${selectedId}`),
+    enabled: !!selectedId,
+  });
+
+  const incidentMutation = useMutation({
+    mutationFn: (body: { patientId: string; type: string; description: string }) =>
+      api.post<Incident>('/incidents', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['incidents', selectedId] });
+      setIncidentDesc('');
+      setShowIncidentForm(false);
+      setIncidentSuccess('Incidencia registrada');
+      setIncidentError('');
+      setTimeout(() => setIncidentSuccess(''), 3000);
+    },
+    onError: (e: Error) => {
+      setIncidentError(e.message);
+      setIncidentSuccess('');
+    },
   });
 
   const vitalGroups = groupByShift(careRecords);
@@ -153,16 +196,15 @@ export default function TCAEPage() {
 
   function registerIncident() {
     if (!selectedId || !incidentDesc.trim()) return;
-    const inc: LocalIncident = { id: `inc-${++incCounter}`, type: incidentType, description: incidentDesc.trim(), reportedAt: new Date().toISOString() };
-    setIncidentsByPatient((prev) => ({ ...prev, [selectedId]: [...(prev[selectedId] ?? []), inc] }));
-    setIncidentDesc(''); setShowIncidentForm(false);
-    setIncidentSuccess('Incidencia registrada');
-    setTimeout(() => setIncidentSuccess(''), 3000);
+    incidentMutation.mutate({
+      patientId: selectedId,
+      type: incidentType,
+      description: incidentDesc.trim(),
+    });
   }
 
   const hasValues = VITAL_FIELDS.some((f) => values[f.key]?.trim());
   const restrictions = selected ? getRestrictions(selected) : [];
-  const patientIncidents = selectedId ? (incidentsByPatient[selectedId] ?? []) : [];
 
   return (
     <div className="space-y-6">
@@ -283,20 +325,27 @@ export default function TCAEPage() {
                   <p className="text-sm text-slate-400 text-center py-6 font-medium">Sin medicación activa</p>
                 ) : (
                   <ul className="divide-y divide-slate-100">
-                    {medications.map((m, idx) => {
-                      const status = idx % 3 === 0 ? 'administered' : 'pending';
-                      return (
-                        <li key={m.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900">{m.drugName}</p>
-                            <p className="text-xs text-slate-400">{m.dose} · {m.route} · cada {m.frequencyHrs}h</p>
-                          </div>
-                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 text-white ${status === 'administered' ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                            {status === 'administered' ? '✓ ADMINISTRADO' : 'PENDIENTE'}
-                          </span>
-                        </li>
-                      );
-                    })}
+                    {(() => {
+                      const now = Date.now();
+                      return medications.map((m) => {
+                        const past = (m.schedules ?? [])
+                          .filter((s) => new Date(s.scheduledAt).getTime() <= now)
+                          .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+                        const lastDose = past[0];
+                        const isAdministered = !!lastDose?.administeredAt;
+                        return (
+                          <li key={m.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900">{m.drugName}</p>
+                              <p className="text-xs text-slate-400">{m.dose} · {m.route} · cada {m.frequencyHrs}h</p>
+                            </div>
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 text-white ${isAdministered ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                              {isAdministered ? '✓ ADMINISTRADO' : 'PENDIENTE'}
+                            </span>
+                          </li>
+                        );
+                      });
+                    })()}
                   </ul>
                 )}
 
@@ -325,8 +374,9 @@ export default function TCAEPage() {
                       <input type="text" placeholder="Descripción de la incidencia..." value={incidentDesc}
                         onChange={(e) => setIncidentDesc(e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30" />
-                      <button onClick={registerIncident} disabled={!incidentDesc.trim()}
-                        className="bg-red-500 text-white text-xs font-black px-4 py-1.5 rounded-lg hover:bg-red-600 disabled:opacity-50">
+                      <button onClick={registerIncident} disabled={!incidentDesc.trim() || incidentMutation.isPending}
+                        className="bg-red-500 text-white text-xs font-black px-4 py-1.5 rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-1.5">
+                        {incidentMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                         Guardar incidencia
                       </button>
                     </div>
@@ -335,6 +385,11 @@ export default function TCAEPage() {
                   {incidentSuccess && (
                     <p className="text-xs text-emerald-600 flex items-center gap-1 mb-2 font-bold">
                       <CheckCircle2 className="w-3.5 h-3.5" /> {incidentSuccess}
+                    </p>
+                  )}
+                  {incidentError && (
+                    <p className="text-xs text-red-600 flex items-center gap-1 mb-2 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5" /> {incidentError}
                     </p>
                   )}
 

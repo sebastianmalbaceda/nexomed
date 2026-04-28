@@ -12,11 +12,15 @@ export interface User {
 
 export interface Patient {
   id: string;
+  dni: string | null;
   name: string;
   /** ISO date string */
   dob: string;
   diagnosis: string;
   allergies: string[];
+  dietRestriction: string | null;
+  isolationRestriction: string | null;
+  mobilityRestriction: string | null;
   /** ISO date string */
   admissionDate: string;
   bedId: string | null;

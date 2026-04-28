@@ -18,7 +18,20 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        // SSE: stream sin buffering (ENF-RF3)
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const ct = proxyRes.headers['content-type'];
+            if (typeof ct === 'string' && ct.includes('text/event-stream')) {
+              proxyRes.headers['cache-control'] = 'no-cache, no-transform';
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            }
+          });
+        },
       },
     },
+  },
+  build: {
+    cssMinify: 'esbuild',
   },
 })

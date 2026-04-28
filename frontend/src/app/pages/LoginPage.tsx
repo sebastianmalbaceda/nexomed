@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, AlertCircle, Loader2, ShieldPlus } from 'lucide-react'; // Añadido ShieldPlus
+import { User, Lock, Loader2, ShieldPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { SEED_CREDENTIALS } from '@/lib/constants';
@@ -27,81 +27,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      height: '100vh', 
-      width: '100vw',
-      display: 'flex',
-      flexDirection: 'column', 
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#f9fafb',
-      margin: 0,
-      padding: 0, 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      boxSizing: 'border-box',
-      overflow: 'hidden'
-    }}>
-      
-      <div style={{
-        backgroundColor: 'white',
-        width: '90%',
-        maxWidth: '400px',
-        padding: '1.75rem 2.25rem',
-        borderRadius: '1.25rem',
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-        border: '1px solid #f3f4f6',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        boxSizing: 'border-box'
-      }}>
-
-        {/* LOGO - USANDO SHIELDPLUS DE LUCIDE PARA CENTRADO PERFECTO */}
-        <div style={{ 
-          backgroundColor: '#0f172a', 
-          width: '48px',
-          height: '48px',
-          borderRadius: '10px', 
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-gray-50">
+      <div className="w-[90%] max-w-[400px] bg-white rounded-[1.25rem] p-7 shadow-md border border-gray-100 flex flex-col items-center">
+        <div className="bg-slate-900 w-12 h-12 rounded-xl mb-4 flex items-center justify-center">
           <ShieldPlus color="white" size={28} strokeWidth={2.5} />
         </div>
 
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0f172a', margin: '0 0 0.15rem 0', letterSpacing: '-0.025em' }}>
+        <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">
           NexoMed
         </h1>
-        <p style={{ color: '#9ca3af', marginBottom: '1.5rem', fontSize: '0.85rem', textAlign: 'center' }}>
+        <p className="text-gray-400 text-sm mb-6 text-center">
           Sistema de Gestión Clínica Hospitalaria
         </p>
 
-        <div style={{ width: '100%', marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.4rem', color: '#374151', fontSize: '0.8rem' }}>
+        <div className="w-full mb-4">
+          <label className="block font-semibold mb-1 text-gray-700 text-xs">
             Seleccionar Usuario
           </label>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-             <User size={16} style={{ position: 'absolute', left: '12px', color: '#9ca3af' }} />
-             <select
+          <div className="relative flex items-center">
+            <User size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
+            <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 1rem 0.65rem 2.5rem',
-                borderRadius: '0.6rem',
-                border: '1px solid #e5e7eb',
-                fontSize: '0.9rem',
-                backgroundColor: '#fff',
-                color: '#1f2937',
-                cursor: 'pointer',
-                appearance: 'none',
-                outline: 'none',
-                fontFamily: 'inherit'
-              }}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-800 cursor-pointer outline-none font-medium appearance-none"
             >
               <option value="">-- Selecciona un usuario --</option>
               {SEED_CREDENTIALS.map((c) => (
@@ -115,49 +63,32 @@ export default function LoginPage() {
           type="button"
           onClick={handleLogin}
           disabled={!selectedUser || loginMutation.isPending}
-          style={{
-            width: '100%',
-            backgroundColor: '#05050a',
-            color: 'white',
-            padding: '0.75rem',
-            borderRadius: '0.6rem',
-            fontSize: '0.95rem',
-            fontWeight: '600',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            opacity: (!selectedUser || loginMutation.isPending) ? 0.6 : 1,
-            transition: 'all 0.2s ease',
-            marginBottom: '1.5rem'
-          }}
+          className="w-full bg-black text-white py-3 rounded-lg text-sm font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 mb-6"
         >
           {loginMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
           <span>Iniciar Sesión</span>
         </button>
 
-        <div style={{ width: '100%', borderTop: '1px solid #f3f4f6', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.8rem' }}>💡</span>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>
-              <span style={{ color: '#6b7280', fontWeight: '500' }}>Demo:</span> Selecciona usuario para acceder
+        <div className="w-full border-t border-gray-100 pt-4">
+          <div className="flex gap-2 mb-1.5">
+            <span className="text-sm">💡</span>
+            <p className="m-0 text-xs text-gray-400">
+              <span className="text-gray-500 font-medium">Demo:</span> Selecciona usuario para acceder
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.8rem' }}>👨‍⚕️</span>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>1 Médico, 5 Enfermeros, 2 TCAE</p>
+          <div className="flex gap-2 mb-1.5">
+            <span className="text-sm">👨‍⚕️</span>
+            <p className="m-0 text-xs text-gray-400">1 Médico, 5 Enfermeros, 2 TCAE</p>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem' }}>🏥</span>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>Planta única (101-112 A/B)</p>
+          <div className="flex gap-2">
+            <span className="text-sm">🏥</span>
+            <p className="m-0 text-xs text-gray-400">Planta única (101-112 A/B)</p>
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: '400', margin: 0 }}>
+      <div className="mt-5 text-center">
+        <p className="text-xs text-gray-400 font-normal m-0">
           NexoMed v1.0 — Sistema Hospitalario Integrado
         </p>
       </div>

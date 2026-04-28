@@ -5,100 +5,37 @@ import {
   getPatients,
   getPatientById,
   createPatient,
-  dischargePatient
+  updatePatient,
+  dischargePatient,
+  getPatientVitals
 } from '../controllers/patients.controller';
+import { getCareRecords } from '../controllers/careRecords.controller';
+import { getIncidents } from '../controllers/incidents.controller';
 
 const router = Router();
 
-/**
- * @swagger
- * /patients:
- *   get:
- *     summary: Listar todos los pacientes
- *     tags: [Patients]
- *     security: [{ bearerAuth: [] }]
- *     responses:
- *       200:
- *         description: Lista de pacientes
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Patient'
- */
+// GET /api/patients — listar todos los pacientes
 router.get('/', authenticate, getPatients);
 
-/**
- * @swagger
- * /patients/{id}:
- *   get:
- *     summary: Obtener ficha completa de un paciente
- *     tags: [Patients]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Ficha del paciente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Patient'
- *       404:
- *         description: Paciente no encontrado
- */
+// GET /api/patients/:patientId/care-records — historial de cuidados (MED-RF1, SYS-RF2)
+router.get('/:patientId/care-records', authenticate, getCareRecords);
+
+// GET /api/patients/:patientId/vitals — constantes vitales del paciente
+router.get('/:patientId/vitals', authenticate, getPatientVitals);
+
+// GET /api/patients/:patientId/incidents — incidencias del paciente (alias)
+router.get('/:patientId/incidents', authenticate, getIncidents);
+
+// GET /api/patients/:id — ficha completa del paciente
 router.get('/:id', authenticate, getPatientById);
 
-/**
- * @swagger
- * /patients:
- *   post:
- *     summary: Dar de alta un nuevo paciente
- *     tags: [Patients]
- *     security: [{ bearerAuth: [] }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name, dob, diagnosis]
- *             properties:
- *               name: { type: string }
- *               dob: { type: string, format: date-time }
- *               diagnosis: { type: string }
- *               allergies: { type: array, items: { type: string } }
- *               bedId: { type: string, format: uuid }
- *     responses:
- *       201:
- *         description: Paciente creado
- *       400:
- *         description: Validación fallida
- */
+// POST /api/patients — dar de alta (crea nuevo o re-ingresa por DNI)
 router.post('/', authenticate, authorize('DOCTOR', 'NURSE'), createPatient);
 
-/**
- * @swagger
- * /patients/{id}/discharge:
- *   put:
- *     summary: Dar de baja un paciente (liberar cama)
- *     tags: [Patients]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Paciente dado de baja
- *       404:
- *         description: Paciente no encontrado
- */
+// PUT /api/patients/:id — modificar datos del paciente (SCRUM-31)
+router.put('/:id', authenticate, authorize('DOCTOR', 'NURSE'), updatePatient);
+
+// PUT /api/patients/:id/discharge — dar de baja (liberar cama)
 router.put('/:id/discharge', authenticate, authorize('DOCTOR', 'NURSE'), dischargePatient);
 
 export default router;

@@ -1,5 +1,6 @@
 // src/services/notification.service.ts
 import { prisma } from '../lib/prismaClient';
+import { notificationBus } from '../lib/notificationEvents';
 
 export async function notifyNursesAboutMedicationChange(
   patientId: string,
@@ -11,6 +12,11 @@ export async function notifyNursesAboutMedicationChange(
     where: { role: 'NURSE' }
   });
 
+  if (nurses.length === 0) {
+    console.warn('[notifications] No hay enfermeros a quien notificar');
+    return;
+  }
+
   const notifications = nurses.map(nurse => ({
     userId: nurse.id,
     type,
@@ -18,7 +24,20 @@ export async function notifyNursesAboutMedicationChange(
     relatedPatientId: patientId
   }));
 
+  // Insertar primero, luego emitir eventos SSE
   await prisma.notification.createMany({ data: notifications });
+
+  const createdAt = new Date().toISOString();
+  for (const nurse of nurses) {
+    notificationBus.emit('notification', {
+      userId: nurse.id,
+      type,
+      message,
+      relatedPatientId: patientId,
+      createdAt,
+    });
+  }
+  console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
 }
 
 export async function notifyNursesAboutDiagnosticTest(
