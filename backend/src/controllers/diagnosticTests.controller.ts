@@ -164,7 +164,7 @@ export const addTestResult = async (req: AuthRequest, res: Response) => {
   try {
     const test = await prisma.diagnosticTest.update({
       where: { id },
-      data: { result, status: 'COMPLETED' }
+      data: { result }
     });
     res.json(test);
   } catch (error) {

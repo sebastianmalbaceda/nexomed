@@ -16,12 +16,12 @@ API REST para gestión clínica hospitalaria — Proyecto LIS UAB 2026.
 npm install
 cp .env.example .env  # si no existe
 npm run db:seed       # poblar datos de prueba
-npm run dev           # servidor en puerto 3001
+npm run dev           # servidor en puerto 3000
 ```
 
 ## Documentación API
 
-Con el servidor corriendo: `http://localhost:3001/api/docs`
+Con el servidor corriendo: `http://localhost:3000/api/docs`
 
 ## Tests
 

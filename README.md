@@ -77,7 +77,7 @@ npm run db:seed
 
 ```bash
 # Terminal 1 — Backend
-cd backend && npm run dev      # Puerto 3001
+cd backend && npm run dev      # Puerto 3000
 
 # Terminal 2 — Frontend
 cd frontend && npm run dev     # Puerto 5173
@@ -86,9 +86,9 @@ cd frontend && npm run dev     # Puerto 5173
 Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 
 **Credenciales de prueba (seed):**
-- Enfermero: `enfermero@nexomed.test` / `Test1234!`
-- Médico: `medico@nexomed.test` / `Test1234!`
-- TCAE: `tcae@nexomed.test` / `Test1234!`
+- Médico: `dr.garcia@nexomed.es` / `password123`
+- Enfermero: `enf.martinez@nexomed.es` / `password123`
+- TCAE: `tcae.sanchez@nexomed.es` / `password123`
 
 ---
 

@@ -6,9 +6,10 @@ module.exports = {
   testMatch: ['**/*.test.ts'],
   setupFiles: ['<rootDir>/jest.setup.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
-  globals: {
-    'ts-jest': {
-      tsconfig: './tsconfig.test.json',
-    },
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      { tsconfig: './tsconfig.test.json' },
+    ],
   },
 };

@@ -26,7 +26,7 @@ npm run test          # Vitest (tests de componentes)
 # --- BACKEND ---
 cd backend
 npm install           # instalar dependencias
-npm run dev           # servidor de desarrollo con hot-reload (puerto 3001)
+npm run dev           # servidor de desarrollo con hot-reload (puerto 3000)
 npm run build         # compilar TypeScript
 npm run lint          # ESLint check
 npm run test          # Jest + Supertest
@@ -132,7 +132,7 @@ nexomed/
 
 ## API REST — Patrones
 
-- Base URL: `http://localhost:3001/api`
+- Base URL: `http://localhost:3000/api`
 - Auth: header `Authorization: Bearer <token>`
 - Todas las respuestas: JSON con estructura `{ data: ..., error?: string }`
 - Paginación donde corresponda: `?page=1&limit=20`
@@ -184,11 +184,11 @@ nexomed/
 DATABASE_URL="postgresql://user:password@localhost:5432/nexomed"
 JWT_SECRET="tu_secreto_muy_seguro_min_32_chars"
 JWT_EXPIRES_IN="8h"
-PORT=3001
+PORT=3000
 CORS_ORIGIN="http://localhost:5173"
 
 # .env (frontend)
-VITE_API_URL="http://localhost:3001/api"
+VITE_API_URL="http://localhost:3000/api"
 ```
 
 ---

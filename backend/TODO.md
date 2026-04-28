@@ -63,7 +63,7 @@ Tests mínimos requeridos:
 ## 🚀 Comandos
 
 ```bash
-npm run dev          # Servidor de desarrollo (puerto 3001)
+npm run dev          # Servidor de desarrollo (puerto 3000)
 npm run build        # Compilar TypeScript
 npm run test         # Ejecutar tests (Jest)
 npm run db:seed      # Poblar con datos de prueba
@@ -83,7 +83,7 @@ npm run db:studio    # Abrir Prisma Studio
 
 ## 📡 Endpoints
 
-Ver documentación interactiva en `http://localhost:3001/api/docs` (con servidor corriendo).
+Ver documentación interactiva en `http://localhost:3000/api/docs` (con servidor corriendo).
 
 ### Resumen rápido
 

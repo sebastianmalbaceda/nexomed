@@ -26,7 +26,7 @@ export function useNotificationToast() {
         hasShownRef.current.add(data.id);
 
         let title = 'Notificación';
-        let description = data.message || 'Nueva notificación recibida';
+        const description = data.message || 'Nueva notificación recibida';
         
         if (data.type === 'TEST_NEW') {
           title = '🧪 Nueva prueba diagnóstica';

@@ -4,7 +4,7 @@ description: Stack técnico, convenciones clave y estado del frontend implementa
 type: project
 ---
 
-NexoMed es una app de gestión clínica hospitalaria (proyecto LIS UAB 2026). React 18 + Vite + TypeScript + Tailwind v4 + Shadcn UI. Backend Node/Express/Prisma en puerto 3001.
+NexoMed es una app de gestión clínica hospitalaria (proyecto LIS UAB 2026). React 18 + Vite + TypeScript + Tailwind v4 + Shadcn UI. Backend Node/Express/Prisma en puerto 3000.
 
 **Why:** Proyecto académico con equipo dividido: frontend (Raúl/Irene/Cristina) y backend (Xiang/Cristian/Sebastian).
 
