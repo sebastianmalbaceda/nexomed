@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Role } from '@/lib/types';
 
 // Stored in-memory only — never localStorage (AGENTS.md rule)
-interface AuthUser {
+export interface AuthUser {
   id: string;
   name: string;
   role: Role;

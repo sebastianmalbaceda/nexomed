@@ -115,6 +115,7 @@ export interface DiagnosticTest {
   name: string;
   /** ISO date string */
   scheduledAt: string;
+  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   result: string | null;
   requestedBy: string;
 }

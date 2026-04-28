@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TestTube, FlaskConical, ImageIcon, Loader2, ChevronDown,
-  Plus, X, Calendar, CheckCircle2, Clock,
+  Plus, X, Calendar, CheckCircle2, Clock, Pencil, Trash2, Check, Ban,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import type { AuthUser } from '@/store/authStore';
 import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
 export default function DiagnosticTestsPage() {
@@ -33,7 +34,7 @@ export default function DiagnosticTestsPage() {
 
   const labTests     = allTests.filter((t) => t.type === 'LAB');
   const imagingTests = allTests.filter((t) => t.type === 'IMAGING');
-  const pendingCount = allTests.filter((t) => !t.result).length;
+  const pendingCount = allTests.filter((t) => t.status === 'PENDING').length;
 
   const scheduleMutation = useMutation({
     mutationFn: (body: { patientId: string; type: string; name: string; scheduledAt: string }) =>
@@ -202,9 +203,11 @@ export default function DiagnosticTestsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <TestSection title="Pruebas de Laboratorio" icon={FlaskConical} tests={labTests}
-            emptyLabel="Sin pruebas de laboratorio" headerBg="bg-orange-500" accentBorder="border-t-orange-500" />
+            emptyLabel="Sin pruebas de laboratorio" headerBg="bg-orange-500" accentBorder="border-t-orange-500"
+            isDoctor={isDoctor} selectedPatientId={selectedPatientId} user={user} />
           <TestSection title="Diagnóstico por Imagen" icon={ImageIcon} tests={imagingTests}
-            emptyLabel="Sin pruebas de imagen" headerBg="bg-violet-500" accentBorder="border-t-violet-500" />
+            emptyLabel="Sin pruebas de imagen" headerBg="bg-violet-500" accentBorder="border-t-violet-500"
+            isDoctor={isDoctor} selectedPatientId={selectedPatientId} user={user} />
         </div>
       )}
     </div>
@@ -212,7 +215,7 @@ export default function DiagnosticTestsPage() {
 }
 
 function TestSection({
-  title, icon: Icon, tests, emptyLabel, headerBg, accentBorder,
+  title, icon: Icon, tests, emptyLabel, headerBg, accentBorder, isDoctor, selectedPatientId, user,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -220,7 +223,81 @@ function TestSection({
   emptyLabel: string;
   headerBg: string;
   accentBorder: string;
+  isDoctor: boolean;
+  selectedPatientId: string;
+  user: AuthUser | null;
 }) {
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; scheduledAt?: string; status?: string } }) =>
+      api.put(`/tests/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+      setEditingId(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/tests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+    },
+  });
+
+  const startEdit = (test: DiagnosticTest) => {
+    setEditingId(test.id);
+    setEditName(test.name);
+    setEditDate(new Date(test.scheduledAt).toISOString().slice(0, 16));
+    setEditStatus(test.status || 'PENDING');
+  };
+
+  const saveEdit = (id: string) => {
+    updateMutation.mutate({
+      id,
+      data: {
+        ...(editName && { name: editName }),
+        ...(editDate && { scheduledAt: new Date(editDate).toISOString() }),
+        ...(editStatus && { status: editStatus }),
+      },
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditDate('');
+    setEditStatus('');
+  };
+
+  const handleStatusChange = (id: string, newStatus: string) => {
+    updateMutation.mutate({
+      id,
+      data: { status: newStatus },
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta prueba?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return { bg: 'bg-emerald-500', label: 'REALIZADO' };
+      case 'CANCELLED':
+        return { bg: 'bg-red-400', label: 'CANCELADO' };
+      default:
+        return { bg: 'bg-amber-500', label: 'PENDIENTE' };
+    }
+  };
+
   return (
     <div className={`bg-white border border-slate-200 border-t-4 ${accentBorder} rounded-2xl overflow-hidden shadow-sm`}>
       <div className={`flex items-center gap-3 px-5 py-4 border-b border-slate-100`}>
@@ -236,26 +313,111 @@ function TestSection({
       ) : (
         <ul className="divide-y divide-slate-100">
           {tests.map((t) => {
+            const statusBadge = getStatusBadge(t.status || 'PENDING');
+            const isEditing = editingId === t.id;
+
             return (
               <li key={t.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="font-bold text-slate-900 text-sm truncate">{t.name}</p>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                      placeholder="Nombre de la prueba"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="PENDING">Pendiente</option>
+                      <option value="COMPLETED">Realizado</option>
+                      <option value="CANCELLED">Cancelado</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => saveEdit(t.id)}
+                        disabled={updateMutation.isPending}
+                        className="flex items-center gap-1 bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-600"
+                      >
+                        <Check className="w-3 h-3" />Guardar
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="flex items-center gap-1 bg-slate-400 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-slate-500"
+                      >
+                        <X className="w-3 h-3" />Cancelar
+                      </button>
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded shrink-0 text-white ${t.result ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                    {t.result ? 'RESULTADO' : 'PENDIENTE'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-slate-400 font-medium mb-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date(t.scheduledAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </div>
-                {t.result && (
-                  <p className="text-xs bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-slate-700 mt-2">
-                    <span className="font-bold text-emerald-700">Resultado: </span>{t.result}
-                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-bold text-slate-900 text-sm truncate">{t.name}</p>
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded shrink-0 text-white ${statusBadge.bg}`}>
+                        {statusBadge.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-400 font-medium mb-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(t.scheduledAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                    {t.result && (
+                      <p className="text-xs bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-slate-700 mt-2">
+                        <span className="font-bold text-emerald-700">Resultado: </span>{t.result}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-slate-400 mt-1">Solicitado por: {t.requestedBy}</p>
+
+                    {(isDoctor || user?.role === 'NURSE') && t.status === 'PENDING' && (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                        {t.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => handleStatusChange(t.id, 'COMPLETED')}
+                              className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold"
+                            >
+                              <Check className="w-3 h-3" />Marcar realizado
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(t.id, 'CANCELLED')}
+                              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-bold"
+                            >
+                              <Ban className="w-3 h-3" />Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {isDoctor && (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                        <button
+                          onClick={() => startEdit(t)}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-bold"
+                        >
+                          <Pencil className="w-3 h-3" />Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-bold ml-auto"
+                        >
+                          <Trash2 className="w-3 h-3" />Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
-                <p className="text-[10px] text-slate-400 mt-1">Solicitado por: {t.requestedBy}</p>
               </li>
             );
           })}

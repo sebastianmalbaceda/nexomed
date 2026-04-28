@@ -1,7 +1,7 @@
 // src/routes/diagnosticTests.routes.ts
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { getAllDiagnosticTests, getDiagnosticTests, createDiagnosticTest, addTestResult } from '../controllers/diagnosticTests.controller';
+import { getAllDiagnosticTests, getDiagnosticTests, createDiagnosticTest, addTestResult, updateDiagnosticTest, deleteDiagnosticTest } from '../controllers/diagnosticTests.controller';
 
 const router = Router();
 
@@ -112,5 +112,55 @@ router.post('/', authenticate, authorize('DOCTOR'), createDiagnosticTest);
  *         description: Prueba no encontrada
  */
 router.put('/:id/result', authenticate, authorize('DOCTOR', 'NURSE'), addTestResult);
+
+/**
+ * @swagger
+ * /tests/{id}:
+ *   put:
+ *     summary: Actualizar prueba diagnóstica (solo DOCTOR)
+ *     tags: [DiagnosticTests]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type: { type: string, enum: [LAB, IMAGING] }
+ *               name: { type: string }
+ *               scheduledAt: { type: string, format: date-time }
+ *               status: { type: string, enum: [PENDING, COMPLETED, CANCELLED] }
+ *     responses:
+ *       200:
+ *         description: Prueba actualizada
+ *       400:
+ *         description: Validación fallida
+ */
+router.put('/:id', authenticate, authorize('DOCTOR'), updateDiagnosticTest);
+
+/**
+ * @swagger
+ * /tests/{id}:
+ *   delete:
+ *     summary: Eliminar prueba diagnóstica (solo DOCTOR)
+ *     tags: [DiagnosticTests]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Prueba eliminada
+ *       404:
+ *         description: Prueba no encontrada
+ */
+router.delete('/:id', authenticate, authorize('DOCTOR'), deleteDiagnosticTest);
 
 export default router;

@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { createDiagnosticTestSchema, updateTestResultSchema } from '../validations/diagnosticTest.validation';
+import { createDiagnosticTestSchema, updateTestResultSchema, updateDiagnosticTestSchema } from '../validations/diagnosticTest.validation';
 import { handlePrismaError } from '../lib/errorHandler';
 import { notifyNursesAboutDiagnosticTest } from '../services/notification.service';
 
@@ -164,9 +164,45 @@ export const addTestResult = async (req: AuthRequest, res: Response) => {
   try {
     const test = await prisma.diagnosticTest.update({
       where: { id },
-      data: { result }
+      data: { result, status: 'COMPLETED' }
     });
     res.json(test);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
+// PUT /api/tests/:id — actualizar prueba (solo DOCTOR)
+export const updateDiagnosticTest = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as { id: string };
+  const validation = updateDiagnosticTestSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { type, name, scheduledAt, status } = validation.data;
+  try {
+    const test = await prisma.diagnosticTest.update({
+      where: { id },
+      data: {
+        ...(type && { type }),
+        ...(name && { name }),
+        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
+        ...(status && { status }),
+      }
+    });
+    res.json(test);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
+// DELETE /api/tests/:id — eliminar prueba (solo DOCTOR)
+export const deleteDiagnosticTest = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params as { id: string };
+  try {
+    await prisma.diagnosticTest.delete({ where: { id } });
+    res.json({ success: true, message: 'Prueba eliminada correctamente' });
   } catch (error) {
     return handlePrismaError(error, res);
   }

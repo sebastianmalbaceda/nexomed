@@ -131,9 +131,10 @@ model DiagnosticTest {
   patient     Patient   @relation(fields: [patientId], references: [id])
   patientId   String
   type        String
-  name        String
+  name       String
   scheduledAt DateTime
-  result      String?
+  status     String    @default("PENDING")
+  result     String?
   requestedBy User      @relation("RequestedBy", fields: [requestedById], references: [id])
   requestedById String
   createdAt   DateTime  @default(now())

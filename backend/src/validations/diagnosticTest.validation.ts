@@ -12,5 +12,13 @@ export const updateTestResultSchema = z.object({
   result: z.string().min(1, 'El resultado es obligatorio')
 });
 
+export const updateDiagnosticTestSchema = z.object({
+  type: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  scheduledAt: z.string().refine(val => !isNaN(Date.parse(val)) || !val).optional(),
+  status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional()
+});
+
 export type CreateDiagnosticTestInput = z.infer<typeof createDiagnosticTestSchema>;
 export type UpdateTestResultInput = z.infer<typeof updateTestResultSchema>;
+export type UpdateDiagnosticTestInput = z.infer<typeof updateDiagnosticTestSchema>;
