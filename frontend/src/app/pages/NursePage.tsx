@@ -70,7 +70,6 @@ export default function NursePage() {
   const [careNotes, setCareNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [administered, setAdministered] = useState<Set<string>>(new Set());
   const [scheduleOverrides, setScheduleOverrides] = useState<Record<string, ScheduleOverride>>({});
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [editStartHour, setEditStartHour] = useState(8);
@@ -116,6 +115,14 @@ export default function NursePage() {
     onError: (e: Error) => { setErrorMsg(e.message); setSuccessMsg(''); },
   });
 
+  const administerMutation = useMutation({
+    mutationFn: ({ scheduleId }: { scheduleId: string }) =>
+      api.post(`/medications/schedules/${scheduleId}/administer`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medications', selectedId] });
+    },
+  });
+
   /** Bug fix: don't use %24 — stop before 24h so midnight isn't included */
   function getMedTimes(med: Medication): string[] {
     const ov = scheduleOverrides[med.id];
@@ -128,17 +135,16 @@ export default function NursePage() {
     return calcDoseTimes(med.startTime, med.frequencyHrs);
   }
 
-  const toggleAdmin = (medId: string, time: string) => {
-    setAdministered((prev) => {
-      const s = new Set(prev);
-      if (s.has(`${medId}__${time}`)) {
-        s.delete(`${medId}__${time}`);
-      } else {
-        s.add(`${medId}__${time}`);
-      }
-      return s;
-    });
-  };
+  const administered = new Set(
+    medications.flatMap(m => 
+      (m.schedules || [])
+        .filter(s => s.administeredAt)
+        .map(s => {
+          const dt = new Date(s.scheduledAt);
+          return `${m.id}__${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+        })
+    )
+  );
 
   const pendingMeds = medications.reduce((acc, med) =>
     acc + getMedTimes(med).filter((t) => !administered.has(`${med.id}__${t}`)).length, 0);
@@ -382,11 +388,16 @@ export default function NursePage() {
                             {times.map((t) => {
                               const done = administered.has(`${m.id}__${t}`);
                               const isPast = toMin(t) <= nowMin;
+                              const schedule = (m.schedules || []).find(s => {
+                                const dt = new Date(s.scheduledAt);
+                                return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` === t;
+                              });
                               return (
                                 <button
                                   key={t}
-                                  onClick={() => toggleAdmin(m.id, t)}
-                                  title={done ? 'Desmarcar' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
+                                  onClick={() => schedule && !done && administerMutation.mutate({ scheduleId: schedule.id })}
+                                  disabled={done || administerMutation.isPending}
+                                  title={done ? 'Ya administrado' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
                                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold transition-all ${
                                     done
                                       ? 'bg-emerald-100 border-emerald-300 text-emerald-700 line-through opacity-60'
@@ -395,7 +406,7 @@ export default function NursePage() {
                                       : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
                                   }`}
                                 >
-                                  {done ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                  {done ? <CheckCircle2 className="w-3 h-3" /> : (isPast || schedule?.administeredAt) ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                                   {t}
                                 </button>
                               );
