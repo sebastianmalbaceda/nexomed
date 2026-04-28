@@ -5,6 +5,7 @@ import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createDiagnosticTestSchema, updateTestResultSchema } from '../validations/diagnosticTest.validation';
 import { handlePrismaError } from '../lib/errorHandler';
+import { notifyNursesAboutDiagnosticTest } from '../services/notification.service';
 
 type DiagnosticTestsQuery = {
   patientId?: string;
@@ -135,6 +136,16 @@ export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
         requestedById: req.user!.id
       }
     });
+
+    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+    const typeLabel = type === 'LAB' ? 'Laboratorio' : 'Diagnóstico por imagen';
+
+    await notifyNursesAboutDiagnosticTest(
+      patientId,
+      'TEST_NEW',
+      `Nueva prueba de ${typeLabel} programada para ${patient?.name ?? 'paciente'}: ${name}`
+    );
+
     res.status(201).json(test);
   } catch (error) {
     return handlePrismaError(error, res);

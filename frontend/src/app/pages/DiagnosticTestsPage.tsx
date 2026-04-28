@@ -27,7 +27,7 @@ export default function DiagnosticTestsPage() {
 
   const { data: allTests = [], isLoading: loadingTests } = useQuery({
     queryKey: ['tests', selectedPatientId],
-    queryFn: () => api.get<DiagnosticTest[]>(`/patients/${selectedPatientId}/tests`),
+    queryFn: () => api.get<DiagnosticTest[]>(`/tests/${selectedPatientId}`),
     enabled: selectedPatientId !== '',
   });
 

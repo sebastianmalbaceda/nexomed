@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStream } from '@/hooks/useNotificationStream';
+import { useNotificationToast } from '@/hooks/useNotificationToast';
 import { Sidebar } from '@/components/hospital/Sidebar';
 import { Header } from '@/components/hospital/Header';
 import LoginPage from '@/pages/LoginPage';
@@ -26,8 +27,8 @@ const queryClient = new QueryClient({
 /** Full-page layout: sidebar + header + main content */
 function AppLayout() {
   const { isAuthenticated } = useAuthStore();
-  // ENF-RF3: real-time notifications via SSE (active for all authenticated pages)
   useNotificationStream();
+  useNotificationToast();
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
