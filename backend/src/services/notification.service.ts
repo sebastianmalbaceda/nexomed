@@ -39,3 +39,28 @@ export async function notifyNursesAboutMedicationChange(
   }
   console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
 }
+
+export async function notifyNursesAboutDiagnosticTest(
+  patientId: string,
+  type: string,
+  message: string
+) {
+  const nurses = await prisma.user.findMany({
+    where: { role: 'NURSE' }
+  });
+
+  if (nurses.length === 0) {
+    console.warn('[notifications] No hay enfermeros a quien notificar');
+    return;
+  }
+
+  await prisma.notification.createMany({
+    data: nurses.map(nurse => ({ userId: nurse.id, type, message, relatedPatientId: patientId }))
+  });
+
+  const createdAt = new Date().toISOString();
+  for (const nurse of nurses) {
+    notificationBus.emit('notification', { userId: nurse.id, type, message, relatedPatientId: patientId, createdAt });
+  }
+  console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
+}
