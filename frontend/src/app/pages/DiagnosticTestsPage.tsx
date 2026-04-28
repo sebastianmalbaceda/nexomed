@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TestTube, FlaskConical, ImageIcon, Loader2, ChevronDown,
   Plus, X, Calendar, CheckCircle2, Clock,
@@ -8,21 +8,16 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
-// ── Module-level state: persists across navigation (no backend) ──────────
-let storedLocalTests: DiagnosticTest[] = [];
-let mockId = 0;
-
 export default function DiagnosticTestsPage() {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
+  const queryClient = useQueryClient();
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [newType, setNewType] = useState<DiagnosticTestType>('LAB');
   const [newName, setNewName] = useState('');
   const [newDate, setNewDate] = useState('');
-  // Initialise from module-level so navigating back restores tests
-  const [localTests, setLocalTests] = useState<DiagnosticTest[]>(storedLocalTests);
   const [successMsg, setSuccessMsg] = useState('');
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
@@ -32,37 +27,40 @@ export default function DiagnosticTestsPage() {
 
   const { data: apiTests = [], isLoading: loadingTests } = useQuery({
     queryKey: ['tests', selectedPatientId],
-    queryFn: () => api.get<DiagnosticTest[]>(`/patients/${selectedPatientId}/tests`),
+    queryFn: () => api.get<DiagnosticTest[]>(`/tests/${selectedPatientId}`),
     enabled: selectedPatientId !== '',
   });
 
-  const allTests = [
-    ...apiTests,
-    ...localTests.filter((t) => t.patientId === selectedPatientId),
-  ];
-  const labTests     = allTests.filter((t) => t.type === 'LAB');
-  const imagingTests = allTests.filter((t) => t.type === 'IMAGING');
-  const pendingCount = allTests.filter((t) => !t.result).length;
+  const createTestMutation = useMutation({
+    mutationFn: (data: { patientId: string; type: DiagnosticTestType; name: string; scheduledAt: string }) =>
+      api.post<DiagnosticTest>('/tests', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+      setNewName(''); setNewDate('');
+      setShowForm(false);
+      setSuccessMsg('Prueba programada correctamente');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    },
+    onError: (error: Error) => {
+      setSuccessMsg(`Error: ${error.message}`);
+      setTimeout(() => setSuccessMsg(''), 5000);
+    },
+  });
 
   function handleSchedule() {
     if (!selectedPatientId || !newName.trim() || !newDate) return;
-    const test: DiagnosticTest = {
-      id: `local-${++mockId}`,
+    createTestMutation.mutate({
       patientId: selectedPatientId,
       type: newType,
       name: newName.trim(),
       scheduledAt: new Date(newDate).toISOString(),
-      result: null,
-      requestedBy: user?.name ?? 'Médico/a',
-    };
-    const updated = [...localTests, test];
-    storedLocalTests = updated;      // persist at module level
-    setLocalTests(updated);
-    setNewName(''); setNewDate('');
-    setShowForm(false);
-    setSuccessMsg('Prueba programada correctamente');
-    setTimeout(() => setSuccessMsg(''), 3000);
+    });
   }
+
+  const allTests = apiTests;
+  const labTests     = allTests.filter((t) => t.type === 'LAB');
+  const imagingTests = allTests.filter((t) => t.type === 'IMAGING');
+  const pendingCount = allTests.filter((t) => !t.result).length;
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
 

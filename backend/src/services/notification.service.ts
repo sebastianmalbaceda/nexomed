@@ -20,3 +20,22 @@ export async function notifyNursesAboutMedicationChange(
 
   await prisma.notification.createMany({ data: notifications });
 }
+
+export async function notifyNursesAboutDiagnosticTest(
+  patientId: string,
+  type: string,
+  message: string
+) {
+  const nurses = await prisma.user.findMany({
+    where: { role: 'NURSE' }
+  });
+
+  const notifications = nurses.map(nurse => ({
+    userId: nurse.id,
+    type,
+    message,
+    relatedPatientId: patientId
+  }));
+
+  await prisma.notification.createMany({ data: notifications });
+}
