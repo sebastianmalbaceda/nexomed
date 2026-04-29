@@ -14,10 +14,17 @@ import incidentRoutes from './routes/incidents.routes';
 import diagnosticTestRoutes from './routes/diagnosticTests.routes';
 import drugRoutes from './routes/drugs.routes';
 import scheduleRoutes from './routes/schedule.routes';
+import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+
+// CORS: solo permitir origen configurado (AGENTS.md rule)
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Swagger documentation
@@ -32,7 +39,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/tests', diagnosticTestRoutes);
 app.use('/api/drugs', drugRoutes);
-app.use('/api/schedule', scheduleRoutes);
+  app.use('/api/schedule', scheduleRoutes);
+
+// Global error handler (must be last middleware)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`NexoMed backend corriendo en puerto ${PORT}`));

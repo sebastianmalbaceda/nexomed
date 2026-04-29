@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos...');
 
-  const password = await bcrypt.hash('password123', 12);
+  const passwordHash = await bcrypt.hash('password123', 12);
 
   // --- USUARIOS (upsert para idempotencia) ---
   console.log('Creating users...');
@@ -17,7 +17,7 @@ async function main() {
     update: { name: 'Dr. Antonio García' },
     create: {
       email: 'dr.garcia@nexomed.es',
-      password,
+      passwordHash,
       role: Role.DOCTOR,
       name: 'Dr. Antonio García',
     },
@@ -28,7 +28,7 @@ async function main() {
     update: { name: 'María Martínez' },
     create: {
       email: 'enf.martinez@nexomed.es',
-      password,
+      passwordHash,
       role: Role.NURSE,
       name: 'María Martínez',
     },
@@ -39,7 +39,7 @@ async function main() {
     update: { name: 'Carlos López' },
     create: {
       email: 'enf.lopez@nexomed.es',
-      password,
+      passwordHash,
       role: Role.NURSE,
       name: 'Carlos López',
     },
@@ -50,7 +50,7 @@ async function main() {
     update: { name: 'Laura Sánchez' },
     create: {
       email: 'tcae.sanchez@nexomed.es',
-      password,
+      passwordHash,
       role: Role.TCAE,
       name: 'Laura Sánchez',
     },

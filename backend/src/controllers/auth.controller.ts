@@ -17,7 +17,7 @@ export const login = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
     const token = jwt.sign(
@@ -30,6 +30,11 @@ export const login = async (req: Request, res: Response) => {
   } catch (error) {
     return handlePrismaError(error, res);
   }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  // JWT se invalida en el cliente (Zustand), aquí solo confirmamos
+  res.status(204).send();
 };
 
 export const getMe = async (req: Request, res: Response) => {

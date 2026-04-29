@@ -1,6 +1,6 @@
 # SPEC.md — Especificación de Requisitos de NexoMed
 
-> Versión: 1.0.0 | Fecha: Marzo 2026 | Estado: Activo
+> Versión: 2.0.0 | Fecha: Abril 2026 | Estado: Actualizado
 
 ---
 
@@ -154,7 +154,7 @@ NexoMed es una aplicación web de gestión clínica hospitalaria orientada a pro
 ```
 POST   /api/auth/login          → { token, user: { id, name, role } }
 POST   /api/auth/logout         → 204 No Content
-GET    /api/auth/me             → { id, name, role }
+GET    /api/auth/me             → { id, name, role, email, createdAt }
 ```
 
 ### Pacientes
@@ -162,22 +162,25 @@ GET    /api/auth/me             → { id, name, role }
 GET    /api/patients            → Lista de pacientes de la planta
 GET    /api/patients/:id        → Ficha completa del paciente
 POST   /api/patients            → Alta de nuevo paciente (Médico)
-DELETE /api/patients/:id        → Baja de paciente (Médico)
+PUT    /api/patients/:id        → Modificar paciente
+PUT    /api/patients/:id/discharge → Dar de baja (liberar cama)
+GET    /api/patients/search?dni= → Buscar paciente por DNI
+GET    /api/patients/:id/vitals → Constantes vitales del paciente
 ```
 
 ### Medicación
 ```
-GET    /api/patients/:id/medications        → Lista de medicación pautada
-POST   /api/patients/:id/medications        → Nueva prescripción (Médico)
-PUT    /api/patients/:id/medications/:medId → Modificar pauta / cambiar horario
-DELETE /api/patients/:id/medications/:medId → Retirar medicación (Médico)
-POST   /api/patients/:id/medications/:medId/administer → Registrar administración (Enfermero)
+GET    /api/medications/:patientId        → Lista de medicación pautada
+POST   /api/medications                 → Nueva prescripción (Médico)
+PUT    /api/medications/:id/deactivate → Suspender medicación (Médico)
+PUT    /api/medications/:id/schedule   → Recálculo de horarios
+POST   /api/medications/schedules/:scheduleId/administer → Registrar administración (Enfermero)
 ```
 
 ### Cuidados y Constantes
 ```
-GET    /api/patients/:id/care-records       → Historial de cuidados
-POST   /api/patients/:id/care-records       → Registrar cuidado/constante (Enfermero, TCAE)
+GET    /api/cares/:patientId       → Historial de cuidados
+POST   /api/cares               → Registrar cuidado/constante (Enfermero, TCAE)
 ```
 
 ### Mapa de Camas
@@ -185,25 +188,28 @@ POST   /api/patients/:id/care-records       → Registrar cuidado/constante (Enf
 GET    /api/beds                → Estado de todas las camas de la planta
 PUT    /api/beds/:id/assign     → Asignar paciente a cama
 PUT    /api/beds/:id/release    → Liberar cama (dar de alta)
+PUT    /api/beds/:id/relocate   → Reubicar paciente
 ```
 
 ### Notificaciones
 ```
-GET    /api/notifications       → Notificaciones del usuario autenticado
+GET    /api/notifications           → Notificaciones del usuario autenticado
+GET    /api/notifications/stream   → SSE en tiempo real
 PUT    /api/notifications/:id/read → Marcar como leída
+PUT    /api/notifications/read-all   → Marcar todas como leídas
 ```
 
 ### Incidencias
 ```
-GET    /api/patients/:id/incidents    → Lista de incidencias del paciente
-POST   /api/patients/:id/incidents    → Registrar incidencia
+GET    /api/incidents           → Lista de incidencias
+POST   /api/incidents           → Registrar incidencia
 ```
 
 ### Pruebas Diagnósticas
 ```
-GET    /api/patients/:id/tests        → Pruebas programadas y resultados
-POST   /api/patients/:id/tests        → Programar prueba (Médico)
-PUT    /api/patients/:id/tests/:testId → Actualizar resultado
+GET    /api/tests/:patientId    → Pruebas programadas y resultados
+POST   /api/tests               → Programar prueba (Médico)
+PUT    /api/tests/:id           → Actualizar resultado
 ```
 
 ### Medicamentos (CIMA/AEMPS)
@@ -217,15 +223,15 @@ GET    /api/drugs/:nregistro          → Detalle de medicamento CIMA
 ## 7. Modelo de Datos (Principales Entidades)
 
 ```
-User           { id, name, email, passwordHash, role, createdAt }
-Patient        { id, name, dob, diagnosis, allergies, admissionDate, bedId }
-Bed            { id, roomNumber, bedLetter, patientId?, floor }
-Medication     { id, patientId, drugName, nregistro, dose, route, frequency, startTime, prescribedBy, active }
-MedSchedule    { id, medicationId, scheduledAt, administeredAt?, administeredBy? }
-CareRecord     { id, patientId, type, value, unit?, notes?, recordedBy, recordedAt }
+User           { id, email, passwordHash, role, name, createdAt, updatedAt }
+Patient        { id, dni?, name, surnames?, dob, diagnosis, allergies, dietRestriction?, isolationRestriction?, mobilityRestriction?, admissionDate, discharged, dischargeDate, bedId, assignedNurseId? }
+Bed            { id, roomNumber, letter, floor, patient? }
+Medication     { id, patientId, drugName, nregistro?, dose, route, frequencyHrs, startTime, active, prescribedById }
+MedSchedule    { id, medicationId, scheduledAt, administeredAt?, administeredById? }
+CareRecord     { id, patientId, type, value, unit?, notes?, recordedById, recordedAt }
 Notification   { id, userId, type, message, relatedPatientId?, read, createdAt }
-Incident       { id, patientId, type, description, reportedBy, reportedAt }
-DiagnosticTest { id, patientId, type, name, scheduledAt, result?, requestedBy }
+Incident       { id, patientId, type, description, reportedById, reportedAt }
+DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, requestedById }
 ```
 
 ---
@@ -237,3 +243,40 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, result?, requestedBy }
 3. **Notificación obligatoria**: Toda prescripción nueva o modificación de medicación activa por parte del médico genera una notificación no descartable para el enfermero asignado al paciente.
 4. **Sin duplicidad**: El sistema impide registrar el mismo tipo de constante vital (ej. tensión arterial) dos veces en menos de 15 minutos para el mismo paciente, mostrando un aviso de confirmación.
 5. **Acciones en 3 clics**: Las acciones de alta frecuencia (ver paciente desde mapa, marcar medicación administrada, registrar constante) deben ser alcanzables desde el panel principal en ≤ 3 clics.
+6. **Enfermero asignado**: Cada paciente puede tener un enfermero asignado (assignedNurseId) para recibir notificaciones específicas.
+
+---
+
+## 9. Estado de Implementación (Actualizado Abril 2026)
+
+### ✅ Completado
+- Backend con Express + Prisma + JWT implementado
+- Frontend con React 18 + Vite + TanStack Query + Zustand operativo
+- Autenticación JWT con login/logout funcional
+- SSE (Server-Sent Events) para notificaciones en tiempo real
+- Mapa de camas con gestión de altas/bajas/reubicaciones
+- Registro de cuidados y constantes con anti-duplicidad
+- Integración con API CIMA (proxy en backend)
+- Shadcn UI + Tailwind correctamente configurados
+- Seed de base de datos con usuarios y pacientes de prueba
+
+### 🔄 En Progreso
+- Panel del médico (prescripción de medicación en desarrollo)
+- Módulo de incidencias (frontend creado, falta integración completa)
+- Cronograma MedicalSchedule (vista parcial implementada)
+
+### 📋 Pendiente
+- Testing integrado completo (Jest + Supertest)
+- Documentación Swagger completa
+- READMEs de frontend y backend
+- Preparación DEMO final
+- Validación final con el profesor
+
+---
+
+## 10. Notas de Implementación
+
+- **API Endpoints**: Los endpoints siguen la estructura actual del código, no el contrato original del SPEC v1.0.0 (ver sección 6).
+- **Enfermero asignado**: Campo `assignedNurseId` añadido a `Patient` en schema.prisma v2.0.0 para notificaciones dirigidas.
+- **Password**: Campo renombrado de `password` a `passwordHash` en `User` para mayor claridad.
+- **Logs**: Prisma configurado para solo loggear queries en desarrollo (`NODE_ENV=development`).

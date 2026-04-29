@@ -17,11 +17,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log(`[API] ${options.method ?? 'GET'} ${fullUrl}`);
 
   const response = await fetch(fullUrl, { ...options, headers });
-
-  console.log(`[API] Response: ${response.status} ${response.statusText}`);
 
   // Redirect to login on expired / invalid token
   if (response.status === 401) {

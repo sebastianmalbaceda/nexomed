@@ -85,7 +85,11 @@ export interface CareRecord {
   recordedAt: string;
 }
 
-export type NotificationType = 'MED_CHANGE' | 'MED_NEW' | 'MED_REMOVED';
+export type NotificationType =
+  | 'MED_CHANGE'
+  | 'MED_NEW'
+  | 'MED_REMOVED'
+  | 'INCIDENT_NEW';
 
 export interface Notification {
   id: string;
@@ -105,12 +109,6 @@ export type IncidentType =
   | 'SIDE_EFFECT'
   | 'FALL'
   | 'OTHER';
-
-export type NotificationType =
-  | 'MED_CHANGE'
-  | 'MED_NEW'
-  | 'MED_REMOVED'
-  | 'INCIDENT_NEW';
 
 export interface Incident {
   id: string;

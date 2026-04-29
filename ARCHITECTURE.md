@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Arquitectura Técnica de NexoMed
 
-> Versión: 1.0.0 | Fecha: Marzo 2026
+> Versión: 2.0.0 | Fecha: Abril 2026
 
 ---
 
@@ -14,14 +14,14 @@ NexoMed sigue una arquitectura **Cliente-Servidor desacoplada**, con una SPA (Si
 │   React 18 + Vite + TypeScript       │
 │   Tailwind CSS + Shadcn UI           │
 │   TanStack Query + Zustand           │
-└──────────────┬───────────────────────┘
+└────────────┬───────────────────────┘
                │  HTTP / REST (JSON)
                │  JWT en Authorization header
-┌──────────────▼───────────────────────┐
+┌────────────▼───────────────────────┐
 │           API REST (Backend)         │
 │   Node.js + Express                  │
 │   Middleware: auth, roles, cors      │
-│   Motor de notificaciones (polling)  │
+│   Motor de notificaciones (SSE)      │
 └──────┬───────────────────────┬───────┘
        │                       │
 ┌──────▼──────┐        ┌───────▼──────────┐
@@ -44,7 +44,7 @@ NexoMed sigue una arquitectura **Cliente-Servidor desacoplada**, con una SPA (Si
 | Tailwind CSS | 3 | Utilidades CSS |
 | Shadcn UI | latest | Componentes accesibles (modales, cards, sheets) |
 | Lucide React | latest | Iconografía médica |
-| React Router DOM | v6 | Enrutamiento SPA sin recarga |
+| React Router DOM | v7 | Enrutamiento SPA sin recarga |
 | React Hook Form | latest | Gestión de formularios |
 | Zod | latest | Validación de esquemas en cliente |
 | TanStack Query | v5 | Cache, fetching y revalidación en segundo plano |
@@ -59,32 +59,34 @@ frontend/
 │   │   ├── App.tsx                    ← Enrutador raíz
 │   │   ├── components/
 │   │   │   ├── ui/                    ← Shadcn UI (accordion, button, card…)
-│   │   │   ├── figma/                 ← Componentes de referencia Figma
-│   │   │   ├── Sidebar.tsx            ← Barra de navegación lateral por rol
-│   │   │   ├── Header.tsx             ← Cabecera con usuario, turno y notificaciones
-│   │   │   ├── BedMap.tsx             ← Mapa de camas de la planta
-│   │   │   ├── DashboardOverview.tsx  ← Panel resumen del turno
-│   │   │   ├── MedicalSchedule.tsx    ← Cronograma de tareas / medicación
-│   │   │   ├── DiagnosticTests.tsx    ← Pruebas diagnósticas
-│   │   │   ├── ShiftReport.tsx        ← Informe de traspaso de turno
-│   │   │   ├── UnifiedHistory.tsx     ← Historial unificado del paciente
-│   │   │   ├── RealtimeNotifications.tsx ← Panel de alertas en tiempo real
-│   │   │   └── QuickActions.tsx       ← Acciones rápidas (≤ 3 clics)
+│   │   │   ├── hospital/               ← Componentes específicos hospitalarios
+│   │   │   │   ├── Sidebar.tsx            ← Barra de navegación lateral por rol
+│   │   │   │   ├── Header.tsx             ← Cabecera con usuario, turno y notificaciones
+│   │   │   │   ├── BedMap.tsx             ← Mapa de camas de la planta (hardcoded, NO USAR)
+│   │   │   │   ├── DashboardOverview.tsx  ← Panel resumen del turno
+│   │   │   │   ├── MedicalSchedule.tsx    ← Cronograma de tareas / medicación
+│   │   │   │   ├── DiagnosticTests.tsx    ← Pruebas diagnósticas
+│   │   │   │   ├── ShiftReport.tsx        ← Informe de traspaso de turno
+│   │   │   │   ├── UnifiedHistory.tsx     ← Historial unificado del paciente
+│   │   │   │   ├── RealtimeNotifications.tsx ← Panel de alertas en tiempo real
+│   │   │   │   └── QuickActions.tsx       ← Acciones rápidas (≤ 3 clics)
+│   │   │   └── auth/                  ← Componentes de autenticación
 │   │   ├── pages/
 │   │   │   ├── LoginPage.tsx
 │   │   │   ├── DashboardPage.tsx
-│   │   │   ├── PatientDetailPage.tsx
-│   │   │   ├── BedMapPage.tsx
-│   │   │   ├── SchedulePage.tsx
+│   │   │   ├── BedMapPage.tsx         ← Mapa de camas funcional (USA ESTE)
+│   │   │   ├── PatientsPage.tsx
+│   │   │   ├── NursePage.tsx
+│   │   │   ├── DoctorPage.tsx
+│   │   │   ├── TCAEPage.tsx
+│   │   │   ├── NotificationsPage.tsx
+│   │   │   ├── UnifiedHistoryPage.tsx
+│   │   │   ├── NurseShiftSchedulePage.tsx
 │   │   │   └── IncidentsPage.tsx
 │   │   ├── hooks/                     ← Custom hooks (usePatient, useMedication…)
 │   │   ├── store/                     ← Zustand stores (authStore, notificationStore)
 │   │   └── lib/                       ← Helpers, axios instance, constantes
 │   ├── styles/
-│   │   ├── index.css
-│   │   ├── tailwind.css
-│   │   ├── theme.css                  ← Variables de color del sistema de diseño
-│   │   └── fonts.css
 │   └── main.tsx
 ├── public/
 ├── index.html
@@ -96,18 +98,17 @@ frontend/
 
 ```
 Login
-  ├── rol: enfermero  → /dashboard/nurse  (DashboardOverview + BedMap)
-  ├── rol: medico     → /dashboard/doctor (HistorialCompleto + Prescripcion)
-  └── rol: tcae       → /dashboard/tcae   (CuidadosBasicos + Constantes)
+  ├── rol: enfermero  → /dashboard (NursePage + BedMapPage)
+  ├── rol: medico     → /dashboard (DoctorPage + Prescripción)
+  └── rol: tcae       → /dashboard (TCAEPage + Constantes)
 
 Rutas comunes (con guard por rol):
   /patients/:id          ← Ficha del paciente (datos según rol)
-  /patients/:id/meds     ← Medicación del paciente
-  /patients/:id/care     ← Cuidados y constantes
-  /patients/:id/tests    ← Pruebas diagnósticas
   /beds                  ← Mapa de camas
   /schedule              ← Cronograma de turno (Enfermero)
   /incidents             ← Módulo de incidencias
+  /tests                 ← Pruebas diagnósticas
+  /history               ← Historial unificado
 ```
 
 ---
@@ -124,7 +125,7 @@ Rutas comunes (con guard por rol):
 | jsonwebtoken | Tokens JWT por sesión |
 | bcrypt | Hash de contraseñas |
 | cors | Política CORS entre front y back |
-| axios / node-fetch | Proxy a API CIMA/AEMPS |
+| axios | Proxy a API CIMA/AEMPS |
 
 ### Estructura de Directorios (Backend)
 
@@ -141,19 +142,32 @@ backend/
 │   │   ├── notification.routes.ts
 │   │   ├── incident.routes.ts
 │   │   ├── diagnosticTest.routes.ts
-│   │   └── drug.routes.ts     ← Proxy CIMA/AEMPS
-│   ├── controllers/           ← Lógica de negocio por entidad
-│   ├── middleware/
+│   │   ├── drug.routes.ts     ← Proxy CIMA/AEMPS
+│   │   └── schedule.routes.ts
+│   ├── controllers/           ← Lógica de entrada/salida por entidad
+│   │   ├── auth.controller.ts
+│   │   ├── patients.controller.ts
+│   │   ├── medications.controller.ts
+│   │   ├── careRecords.controller.ts
+│   │   ├── beds.controller.ts
+│   │   ├── notifications.controller.ts
+│   │   ├── incidents.controller.ts
+│   │   ├── diagnosticTests.controller.ts
+│   │   └── drugs.controller.ts
+│   ├── middlewares/
 │   │   ├── auth.middleware.ts  ← Verificación JWT
 │   │   └── role.middleware.ts  ← Guard de permisos por rol
 │   ├── services/
 │   │   ├── medication.service.ts  ← Lógica de recálculo de horarios
-│   │   ├── notification.service.ts← Emisión de alertas
+│   │   ├── notification.service.ts← Emisión de alertas (dirigidas al enfermero asignado)
 │   │   └── cima.service.ts        ← Integración API CIMA
 │   ├── prisma/
-│   │   └── schema.prisma      ← Modelo de datos
-│   └── lib/
-│       └── prismaClient.ts    ← Instancia singleton de Prisma
+│   │   └── schema.prisma      ← Modelo de datos (v2.0.0)
+│   ├── lib/
+│   │   ├── prismaClient.ts    ← Instancia singleton de Prisma
+│   │   ├── errorHandler.ts     ← Manejo centralizado de errores
+│   │   └── notificationEvents.ts ← EventEmitter para SSE
+│   └── swagger.ts            ← Configuración Swagger
 ├── prisma/
 │   ├── schema.prisma
 │   ├── migrations/
@@ -165,7 +179,7 @@ backend/
 
 ```
 Request
-  → cors()
+  → cors() (origen restringido)
   → express.json()
   → authMiddleware (verifica JWT, adjunta req.user)
   → roleMiddleware (verifica permisos del rol)
@@ -181,117 +195,155 @@ Request
 
 **PostgreSQL 15** — base de datos relacional. Elegida por su robustez con relaciones complejas propias de historiales clínicos y su excelente soporte en Prisma ORM.
 
-### Esquema Principal (Prisma)
+### Esquema Principal (Prisma v2.0.0)
 
 ```prisma
-model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         Role      // NURSE | DOCTOR | TCAE
-  createdAt    DateTime  @default(now())
-  notifications Notification[]
-  prescriptions Medication[]    @relation("PrescribedBy")
+generator client {
+  provider = "prisma-client-js"
 }
 
-model Patient {
-  id            String    @id @default(cuid())
-  name          String
-  dob           DateTime
-  diagnosis     String
-  allergies     String[]
-  admissionDate DateTime  @default(now())
-  bed           Bed?      @relation(fields: [bedId], references: [id])
-  bedId         String?
-  medications   Medication[]
-  careRecords   CareRecord[]
-  incidents     Incident[]
-  diagnosticTests DiagnosticTest[]
-}
-
-model Bed {
-  id         String   @id @default(cuid())
-  room       Int
-  letter     String   // A | B
-  floor      Int      @default(1)
-  patient    Patient?
-}
-
-model Medication {
-  id           String        @id @default(cuid())
-  patient      Patient       @relation(fields: [patientId], references: [id])
-  patientId    String
-  drugName     String
-  nregistro    String?       // código CIMA
-  dose         String
-  route        String        // oral | IV | SC | IM
-  frequencyHrs Int           // cada N horas
-  startTime    DateTime
-  active       Boolean       @default(true)
-  prescribedBy User          @relation("PrescribedBy", fields: [prescribedById], references: [id])
-  prescribedById String
-  schedules    MedSchedule[]
-  createdAt    DateTime      @default(now())
-}
-
-model MedSchedule {
-  id             String      @id @default(cuid())
-  medication     Medication  @relation(fields: [medicationId], references: [id])
-  medicationId   String
-  scheduledAt    DateTime
-  administeredAt DateTime?
-  administeredBy String?
-}
-
-model CareRecord {
-  id         String   @id @default(cuid())
-  patient    Patient  @relation(fields: [patientId], references: [id])
-  patientId  String
-  type       String   // constante | cura | higiene | balance | ingesta
-  value      String
-  unit       String?
-  notes      String?
-  recordedBy String
-  recordedAt DateTime @default(now())
-}
-
-model Notification {
-  id               String   @id @default(cuid())
-  user             User     @relation(fields: [userId], references: [id])
-  userId           String
-  type             String   // MED_CHANGE | MED_NEW | MED_REMOVED
-  message          String
-  relatedPatientId String?
-  read             Boolean  @default(false)
-  createdAt        DateTime @default(now())
-}
-
-model Incident {
-  id          String   @id @default(cuid())
-  patient     Patient  @relation(fields: [patientId], references: [id])
-  patientId   String
-  type        String   // MED_REFUSAL | CARE_INCIDENT
-  description String
-  reportedBy  String
-  reportedAt  DateTime @default(now())
-}
-
-model DiagnosticTest {
-  id          String   @id @default(cuid())
-  patient     Patient  @relation(fields: [patientId], references: [id])
-  patientId   String
-  type        String   // LAB | IMAGING
-  name        String
-  scheduledAt DateTime
-  result      String?
-  requestedBy String
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
   NURSE
   DOCTOR
   TCAE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  notifications        Notification[]
+  prescribedMeds      Medication[]      @relation("PrescribedBy")
+  administeredSchedules MedSchedule[]     @relation("AdministeredBy")
+  recordedCareRecords   CareRecord[]     @relation("RecordedBy")
+  reportedIncidents     Incident[]         @relation("ReportedBy")
+  requestedTests       DiagnosticTest[]   @relation("RequestedBy")
+  assignedPatients     Patient[]         @relation("AssignedNurse")
+}
+
+model Patient {
+  id                   String    @id @default(uuid())
+  dni                  String?   @unique
+  name                 String
+  surnames             String?
+  dob                  DateTime
+  diagnosis            String
+  allergies            String[]
+  dietRestriction      String?
+  isolationRestriction String?
+  mobilityRestriction  String?
+  admissionDate        DateTime  @default(now())
+  discharged           Boolean   @default(false)
+  dischargeDate        DateTime?
+  bedId                String?   @unique
+  bed                  Bed?      @relation(fields: [bedId], references: [id])
+  assignedNurseId     String?
+  assignedNurse        User?     @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
+
+  medications      Medication[]
+  careRecords      CareRecord[]
+  incidents        Incident[]
+  diagnosticTests  DiagnosticTest[]
+  notifications    Notification[]
+}
+
+model Bed {
+  id         String   @id @default(uuid())
+  room       Int
+  letter     String
+  floor      Int      @default(1)
+  patient    Patient?
+
+  @@unique([room, letter])
+}
+
+model Medication {
+  id           String   @id @default(uuid())
+  patient      Patient @relation(fields: [patientId], references: [id])
+  patientId    String
+  drugName     String
+  nregistro    String?
+  dose         String
+  route        String
+  frequencyHrs Int
+  startTime    DateTime
+  active       Boolean  @default(true)
+  prescribedBy User     @relation("PrescribedBy", fields: [prescribedById], references: [id])
+  prescribedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedules MedSchedule[]
+}
+
+model MedSchedule {
+  id             String      @id @default(uuid())
+  medication     Medication  @relation(fields: [medicationId], references: [id])
+  medicationId   String
+  scheduledAt    DateTime
+  administeredAt DateTime?
+  administeredBy User?       @relation("AdministeredBy", fields: [administeredById], references: [id])
+  administeredById String?
+}
+
+model CareRecord {
+  id         String   @id @default(uuid())
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  patientId  String
+  type       String
+  value      String
+  unit       String?
+  notes      String?
+  recordedBy User     @relation("RecordedBy", fields: [recordedById], references: [id])
+  recordedById String
+  recordedAt DateTime @default(now())
+}
+
+model Notification {
+  id               String   @id @default(uuid())
+  user             User     @relation(fields: [userId], references: [id])
+  userId           String
+  type             String
+  message          String
+  relatedPatientId String?
+  patient          Patient? @relation(fields: [relatedPatientId], references: [id])
+  read             Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}
+
+model Incident {
+  id          String   @id @default(uuid())
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  patientId   String
+  type        String
+  description String
+  reportedBy  User     @relation("ReportedBy", fields: [reportedById], references: [id])
+  reportedById String
+  reportedAt  DateTime @default(now())
+}
+
+model DiagnosticTest {
+  id          String    @id @default(uuid())
+  patient     Patient   @relation(fields: [patientId], references: [id])
+  patientId   String
+  type        String
+  name        String
+  scheduledAt DateTime
+  status     String    @default("PENDING")
+  result      String?
+  requestedBy User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestedById String
+  createdAt   DateTime @default(now())
 }
 ```
 
@@ -302,7 +354,7 @@ enum Role {
 El backend actúa como proxy para la API pública de medicamentos del CIMA (AEMPS), evitando problemas de CORS y centralizando el cacheo de resultados.
 
 ```
-Frontend → POST /api/drugs/search?q=paracetamol
+Frontend → GET /api/drugs/search?q=paracetamol
          → Backend → GET https://cima.aemps.es/cima/rest/medicamentos?nombre=paracetamol
          → Backend filtra y normaliza respuesta → Frontend
 ```
@@ -314,7 +366,7 @@ Documentación oficial: [CIMA-REST-API v1.19](https://sede.aemps.gob.es/docs/CIM
 ## 6. Autenticación y Seguridad
 
 - **JWT**: tokens firmados (HS256) con expiración de 8 horas (duración de un turno hospitalario). Almacenados en Zustand (memoria) en el cliente — no en localStorage.
-- **bcrypt**: hash de contraseñas con salt rounds = 12.
+- **bcrypt**: hash de contraseñas con salt rounds = 12. Campo en DB: `passwordHash`.
 - **CORS**: lista blanca de orígenes (solo `localhost:5173` en desarrollo, dominio de despliegue en producción).
 - **Role Guard**: middleware `roleMiddleware` rechaza peticiones con código 403 si el rol del token no tiene permisos para el endpoint solicitado.
 - **Validación**: Zod en frontend y validación de tipos TypeScript en backend para todas las entradas de usuario.
@@ -323,12 +375,14 @@ Documentación oficial: [CIMA-REST-API v1.19](https://sede.aemps.gob.es/docs/CIM
 
 ## 7. Notificaciones en Tiempo Real
 
-En el MVP académico se implementa mediante **polling activo** desde el cliente:
-- TanStack Query realiza un refetch de `/api/notifications` cada **5 segundos** cuando el usuario está activo.
-- El backend compara el timestamp de la última notificación enviada y responde con las nuevas.
+Se implementa mediante **SSE (Server-Sent Events)** y **polling activo** desde el cliente:
+
+- **SSE**: EventSource en frontend se conecta a `/api/notifications/stream?token=...`
+- **Polling fallback**: TanStack Query realiza un refetch de `/api/notifications` cada **5 segundos** cuando el usuario está activo.
+- Las notificaciones se envían al **enfermero asignado** al paciente (campo `assignedNurseId` en `Patient`).
 - Las notificaciones no leídas se muestran como badge en el Header y en el panel `RealtimeNotifications`.
 
-> **Nota de arquitectura:** Para un sistema en producción real se reemplazaría el polling por WebSockets (Socket.io) o Server-Sent Events para reducir la latencia y la carga en el servidor.
+> **Nota de arquitectura:** Para un sistema en producción real se reemplazaría el polling por WebSockets (Socket.io) o Server-Sent Events más robustos para reducir la latencia y la carga en el servidor.
 
 ---
 
@@ -340,5 +394,31 @@ En el MVP académico se implementa mediante **polling activo** desde el cliente:
 | PostgreSQL | MySQL | PostgreSQL maneja mejor arrays (alergias), JSON parcial y tipos complejos propios de datos clínicos |
 | Prisma ORM | SQL directo / Sequelize | Migraciones automáticas, tipado TypeScript nativo, reducción de errores por SQL manual |
 | JWT en memoria (Zustand) | localStorage | Evita ataques XSS de lectura de token; el token se pierde al cerrar el tab (comportamiento deseable en entorno clínico) |
-| Polling (vs WebSockets) | Socket.io | Suficiente para el MVP académico con 8 usuarios; reduce complejidad de despliegue |
+| SSE + Polling (vs WebSockets) | Socket.io | SSE es más simple de implementar y suficiente para el MVP académico con 8 usuarios; reduce complejidad de despliegue |
 | Proxy CIMA en backend | Llamada directa desde frontend | Evita CORS, permite cacheo futuro, centraliza el manejo de errores de la API externa |
+| Enfermero asignado (v2.0.0) | Notificar a todos los enfermeros | Las notificaciones dirigidas son más realistas y evitan saturación de notificaciones irrelevantes |
+
+---
+
+## 9. Estado de Implementación (Actualizado Abril 2026)
+
+### ✅ Completado
+- Backend Express + Prisma + JWT funcional
+- Frontend React 18 + Vite + TanStack Query operativo
+- SSE para notificaciones en tiempo real
+- Mapa de camas funcional (BedMapPage.tsx)
+- Registro de cuidados con anti-duplicidad
+- Integración CIMA (proxy backend)
+- Shadcn UI + Tailwind configurados
+
+### 🔄 En Progreso
+- Prescripción de medicación (backend ✅, frontend en desarrollo)
+- Módulo de incidencias (parcial)
+- Historial unificado del paciente
+
+### 📋 Pendiente
+- Tests completos (Jest + Supertest)
+- Documentación Swagger completa
+- READMEs de frontend y backend
+- Error Boundary en React
+- Validación final con profesor

@@ -7,138 +7,138 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  NURSE
-  DOCTOR
-  TCAE
-}
-
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  password     String
-  role         Role
-  name         String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  notifications    Notification[]
-  prescribedMeds  Medication[]    @relation("PrescribedBy")
-  administeredSchedules MedSchedule[] @relation("AdministeredBy")
-  recordedCareRecords   CareRecord[]   @relation("RecordedBy")
-  reportedIncidents     Incident[]     @relation("ReportedBy")
-  requestedTests       DiagnosticTest[] @relation("RequestedBy")
+  id                    String           @id @default(uuid())
+  email                 String           @unique
+  passwordHash          String
+  role                  Role
+  name                  String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  recordedCareRecords   CareRecord[]     @relation("RecordedBy")
+  requestedTests        DiagnosticTest[] @relation("RequestedBy")
+  reportedIncidents     Incident[]       @relation("ReportedBy")
+  administeredSchedules MedSchedule[]    @relation("AdministeredBy")
+  prescribedMeds        Medication[]     @relation("PrescribedBy")
+  notifications         Notification[]
+  assignedPatients      Patient[]        @relation("AssignedNurse")
 }
 
 model Patient {
-  id                   String    @id @default(uuid())
-  dni                  String?   @unique
+  id                   String           @id @default(uuid())
   name                 String
-  surnames             String?
   dob                  DateTime
   diagnosis            String
   allergies            String[]
+  admissionDate        DateTime         @default(now())
+  bedId                String?          @unique
   dietRestriction      String?
+  dni                  String?          @unique
   isolationRestriction String?
   mobilityRestriction  String?
-  admissionDate        DateTime  @default(now())
-  discharged           Boolean   @default(false)
   dischargeDate        DateTime?
-  bedId                String?   @unique
-  bed                  Bed?      @relation(fields: [bedId], references: [id])
-
-  medications      Medication[]
-  careRecords      CareRecord[]
-  incidents        Incident[]
-  diagnosticTests  DiagnosticTest[]
-  notifications    Notification[]
+  discharged           Boolean          @default(false)
+  surnames             String?
+  assignedNurseId     String?
+  assignedNurse       User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
+  careRecords          CareRecord[]
+  diagnosticTests      DiagnosticTest[]
+  incidents            Incident[]
+  medications          Medication[]
+  notifications        Notification[]
+  bed                  Bed?             @relation(fields: [bedId], references: [id])
 }
 
 model Bed {
-  id         String   @id @default(uuid())
-  room       Int
-  letter     String
-  floor      Int      @default(1)
-  patient    Patient?
+  id      String   @id @default(uuid())
+  room    Int
+  letter  String
+  floor   Int      @default(1)
+  patient Patient?
 
   @@unique([room, letter])
 }
 
 model Medication {
-  id           String   @id @default(uuid())
-  patient      Patient @relation(fields: [patientId], references: [id])
-  patientId    String
-  drugName     String
-  nregistro    String?
-  dose         String
-  route        String
-  frequencyHrs Int
-  startTime    DateTime
-  active       Boolean  @default(true)
-  prescribedBy User   @relation("PrescribedBy", fields: [prescribedById], references: [id])
+  id             String        @id @default(uuid())
+  patientId      String
+  drugName       String
+  nregistro      String?
+  dose           String
+  route          String
+  frequencyHrs   Int
+  startTime      DateTime
+  active         Boolean       @default(true)
   prescribedById String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  schedules MedSchedule[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  schedules      MedSchedule[]
+  patient        Patient       @relation(fields: [patientId], references: [id])
+  prescribedBy   User          @relation("PrescribedBy", fields: [prescribedById], references: [id])
 }
 
 model MedSchedule {
-  id             String      @id @default(uuid())
-  medication     Medication  @relation(fields: [medicationId], references: [id])
-  medicationId   String
-  scheduledAt    DateTime
-  administeredAt DateTime?
-  administeredBy User?       @relation("AdministeredBy", fields: [administeredById], references: [id])
+  id               String     @id @default(uuid())
+  medicationId     String
+  scheduledAt      DateTime
+  administeredAt   DateTime?
   administeredById String?
+  administeredBy   User?      @relation("AdministeredBy", fields: [administeredById], references: [id])
+  medication       Medication @relation(fields: [medicationId], references: [id])
 }
 
 model CareRecord {
-  id         String   @id @default(uuid())
-  patient    Patient  @relation(fields: [patientId], references: [id])
-  patientId  String
-  type       String
-  value      String
-  unit       String?
-  notes      String?
-  recordedBy User     @relation("RecordedBy", fields: [recordedById], references: [id])
+  id           String   @id @default(uuid())
+  patientId    String
+  type         String
+  value        String
+  unit         String?
+  notes        String?
   recordedById String
-  recordedAt DateTime @default(now())
+  recordedAt   DateTime @default(now())
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  recordedBy   User     @relation("RecordedBy", fields: [recordedById], references: [id])
 }
 
 model Notification {
   id               String   @id @default(uuid())
-  user             User     @relation(fields: [userId], references: [id])
   userId           String
   type             String
   message          String
   relatedPatientId String?
-  patient          Patient? @relation(fields: [relatedPatientId], references: [id])
   read             Boolean  @default(false)
   createdAt        DateTime @default(now())
+  patient          Patient? @relation(fields: [relatedPatientId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
 }
 
 model Incident {
-  id          String   @id @default(uuid())
-  patient     Patient  @relation(fields: [patientId], references: [id])
-  patientId   String
-  type        String
-  description String
-  reportedBy  User     @relation("ReportedBy", fields: [reportedById], references: [id])
+  id           String   @id @default(uuid())
+  patientId    String
+  type         String
+  description  String
   reportedById String
-  reportedAt  DateTime @default(now())
+  reportedAt   DateTime @default(now())
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  reportedBy   User     @relation("ReportedBy", fields: [reportedById], references: [id])
 }
 
 model DiagnosticTest {
-  id          String    @id @default(uuid())
-  patient     Patient   @relation(fields: [patientId], references: [id])
-  patientId   String
-  type        String
-  name       String
-  scheduledAt DateTime
-  status     String    @default("PENDING")
-  result     String?
-  requestedBy User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  id            String   @id @default(uuid())
+  patientId     String
+  type          String
+  name          String
+  scheduledAt   DateTime
+  result        String?
   requestedById String
-  createdAt   DateTime  @default(now())
+  createdAt     DateTime @default(now())
+  status        String   @default("PENDING")
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id])
+}
+
+enum Role {
+  NURSE
+  DOCTOR
+  TCAE
 }

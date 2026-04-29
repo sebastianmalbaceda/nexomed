@@ -1,6 +1,6 @@
 // src/routes/auth.routes.ts
 import { Router } from 'express';
-import { login, getMe } from '../controllers/auth.controller';
+import { login, getMe, logout } from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -30,6 +30,19 @@ const router = Router();
  *         description: Credenciales incorrectas
  */
 router.post('/login', login);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Cerrar sesión (invalida en cliente)
+ *     tags: [Auth]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       204:
+ *         description: Logout exitoso
+ */
+router.post('/logout', authenticate, logout);
 
 /**
  * @swagger

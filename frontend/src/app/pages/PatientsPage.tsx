@@ -122,7 +122,7 @@ export default function PatientsPage() {
       setShowForm(false);
       setDniSearch('');
       setDniFound(null);
-      setForm({ dni: '', name: '', dob: '', diagnosis: '', allergies: [], bedId: '' });
+      setForm({ dni: '', name: '', surnames: '', dob: '', diagnosis: '', allergies: [], bedId: '' });
     },
   });
 
@@ -300,7 +300,7 @@ export default function PatientsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => createMedMutation.mutate(medForm)}
+                  onClick={() => createMedMutation.mutate({ ...medForm, patientId: selectedPatient!.id })}
                   disabled={!medForm.drugName || !medForm.dose || !medForm.route || createMedMutation.isPending}
                   className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >

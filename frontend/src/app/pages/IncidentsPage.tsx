@@ -62,7 +62,7 @@ export default function IncidentsPage() {
       setTimeout(() => setSuccessMsg(''), 3000);
     },
     onError: (e: Error) => {
-      setIncidentError(e.message);
+      setErrorMsg(e.message);
       setSuccessMsg('');
     },
   });

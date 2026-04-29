@@ -7,17 +7,25 @@ export async function notifyNursesAboutMedicationChange(
   type: string,
   message: string
 ) {
-  // Find all NURSE users to notify them about the medication change
-  const nurses = await prisma.user.findMany({
-    where: { role: 'NURSE' }
+  // Find the assigned nurse for this patient (if any)
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    select: { assignedNurseId: true }
   });
 
-  if (nurses.length === 0) {
+  // If no nurse is assigned, notify ALL nurses as fallback
+  const nurses = patient?.assignedNurseId
+    ? [await prisma.user.findUnique({ where: { id: patient.assignedNurseId } })]
+    : await prisma.user.findMany({ where: { role: 'NURSE' } });
+
+  const validNurses = nurses.filter((n): n is NonNullable<typeof n> => n !== null);
+
+  if (validNurses.length === 0) {
     console.warn('[notifications] No hay enfermeros a quien notificar');
     return;
   }
 
-  const notifications = nurses.map(nurse => ({
+  const notifications = validNurses.map(nurse => ({
     userId: nurse.id,
     type,
     message,
@@ -28,7 +36,7 @@ export async function notifyNursesAboutMedicationChange(
   await prisma.notification.createMany({ data: notifications });
 
   const createdAt = new Date().toISOString();
-  for (const nurse of nurses) {
+  for (const nurse of validNurses) {
     notificationBus.emit('notification', {
       userId: nurse.id,
       type,
@@ -37,7 +45,7 @@ export async function notifyNursesAboutMedicationChange(
       createdAt,
     });
   }
-  console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
+  console.log(`[notifications] ${type} → ${validNurses.length} enfermero(s) notificado(s)`);
 }
 
 export async function notifyNursesAboutDiagnosticTest(
