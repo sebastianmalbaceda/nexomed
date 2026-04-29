@@ -14,6 +14,8 @@ import DiagnosticTestsPage from '@/pages/DiagnosticTestsPage';
 import UnifiedHistoryPage from '@/pages/UnifiedHistoryPage';
 import NursePage from '@/pages/NursePage';
 import TCAEPage from '@/pages/TCAEPage';
+import IncidentsPage from '@/pages/IncidentsPage';
+import NurseShiftSchedulePage from '@/pages/NurseShiftSchedulePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,6 +76,8 @@ export default function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/tests"         element={<DiagnosticTestsPage />} />
             <Route path="/history"       element={<UnifiedHistoryPage />} />
+            <Route path="/incidents"     element={<IncidentsPage />} />
+            <Route path="/schedule"      element={<NurseShiftSchedulePage />} />
           </Route>
 
           {/* Fallback */}

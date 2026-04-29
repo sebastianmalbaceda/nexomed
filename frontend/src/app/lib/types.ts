@@ -94,7 +94,19 @@ export interface Notification {
   createdAt: string;
 }
 
-export type IncidentType = 'MED_REFUSAL' | 'CARE_INCIDENT';
+export type IncidentType =
+  | 'MED_REFUSAL'
+  | 'CARE_INCIDENT'
+  | 'VOMIT_AFTER_MED'
+  | 'SIDE_EFFECT'
+  | 'FALL'
+  | 'OTHER';
+
+export type NotificationType =
+  | 'MED_CHANGE'
+  | 'MED_NEW'
+  | 'MED_REMOVED'
+  | 'INCIDENT_NEW';
 
 export interface Incident {
   id: string;

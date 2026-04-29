@@ -1,9 +1,28 @@
 // src/routes/incidents.routes.ts
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { getIncidents, createIncident } from '../controllers/incidents.controller';
+import { getIncidents, getIncidentsByPatient, createIncident } from '../controllers/incidents.controller';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /incidents:
+ *   get:
+ *     summary: Obtener todas las incidencias
+ *     tags: [Incidents]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Lista de incidencias
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Incident'
+ */
+router.get('/', authenticate, getIncidents);
 
 /**
  * @swagger
@@ -27,7 +46,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Incident'
  */
-router.get('/:patientId', authenticate, getIncidents);
+router.get('/:patientId', authenticate, getIncidentsByPatient);
 
 /**
  * @swagger

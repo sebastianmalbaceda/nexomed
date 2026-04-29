@@ -11,6 +11,8 @@ import {
   Building2,
   ClipboardList,
   Stethoscope,
+  Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/lib/constants';
@@ -32,6 +34,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
   { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },
   { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
+  { to: '/schedule',       label: 'Turno y Horario',      icon: Calendar,        roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR'] },
 ];
 
 export function Sidebar() {

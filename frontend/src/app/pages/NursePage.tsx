@@ -36,6 +36,8 @@ function toMin(hhmm: string): number {
   return h * 60 + (m || 0);
 }
 
+interface ScheduleOverride { startHour: number; freqHrs: number; }
+
 function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   const start = new Date(startTime);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -57,8 +59,6 @@ function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   }
   return times;
 }
-
-interface ScheduleOverride { startHour: number; freqHrs: number; }
 
 export default function NursePage() {
   const qc = useQueryClient();
@@ -114,7 +114,7 @@ export default function NursePage() {
   });
 
   const administerMutation = useMutation({
-    mutationFn: (scheduleId: string) =>
+    mutationFn: ({ scheduleId }: { scheduleId: string }) =>
       api.post(`/medications/schedules/${scheduleId}/administer`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['medications', selectedId] });
@@ -131,6 +131,20 @@ export default function NursePage() {
     }
     return calcDoseTimes(med.startTime, med.frequencyHrs);
   }
+
+  const administered = new Set(
+    medications.flatMap(m => 
+      (m.schedules || [])
+        .filter(s => s.administeredAt)
+        .map(s => {
+          const dt = new Date(s.scheduledAt);
+          return `${m.id}__${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+        })
+    )
+  );
+
+  const pendingMeds = medications.reduce((acc, med) =>
+    acc + getMedTimes(med).filter((t) => !administered.has(`${med.id}__${t}`)).length, 0);
 
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
 
@@ -364,18 +378,19 @@ export default function NursePage() {
                           )}
 
                           <div className="flex flex-wrap gap-2">
-                            {schedules.length > 0 ? schedules.map((s) => {
-                              const done = !!s.administeredAt;
-                              const scheduledTime = new Date(s.scheduledAt);
-                              const timeStr = `${String(scheduledTime.getHours()).padStart(2, '0')}:${String(scheduledTime.getMinutes()).padStart(2, '0')}`;
-                              const isPast = toMin(timeStr) <= nowMin;
-
+                            {getMedTimes(m).map((t) => {
+                              const done = administered.has(`${m.id}__${t}`);
+                              const isPast = toMin(t) <= nowMin;
+                              const schedule = (m.schedules || []).find(s => {
+                                const dt = new Date(s.scheduledAt);
+                                return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` === t;
+                              });
                               return (
                                 <button
-                                  key={s.id}
-                                  onClick={() => { if (!done) administerMutation.mutate(s.id); }}
+                                  key={t}
+                                  onClick={() => schedule && !done && administerMutation.mutate({ scheduleId: schedule.id })}
                                   disabled={done || administerMutation.isPending}
-                                  title={done ? 'Administrado' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
+                                  title={done ? 'Ya administrado' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
                                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold transition-all ${
                                     done
                                       ? 'bg-emerald-100 border-emerald-300 text-emerald-700 line-through opacity-60'
@@ -384,23 +399,11 @@ export default function NursePage() {
                                       : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
                                   }`}
                                 >
-                                  {done ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                  {timeStr}
+                                  {done ? <CheckCircle2 className="w-3 h-3" /> : (isPast || schedule?.administeredAt) ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                  {t}
                                 </button>
                               );
-                            }) : (
-                              <div className="flex flex-wrap gap-2">
-                                {getMedTimes(m).map((t) => (
-                                  <span
-                                    key={t}
-                                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold bg-slate-100 border-slate-200 text-slate-500"
-                                  >
-                                    <Clock className="w-3 h-3" />
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            })}
                           </div>
                         </div>
                       );
