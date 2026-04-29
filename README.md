@@ -56,22 +56,42 @@ NexoMed centraliza toda la gestión clínica (medicación, cuidados, historial, 
 git clone https://github.com/<org>/nexomed.git
 cd nexomed
 
-# Instalar dependencias del frontend
-cd frontend && npm install
-
-# Instalar dependencias del backend
-cd ../backend && npm install
-
-# Configurar variables de entorno
-cp .env.example .env
-# Edita .env con tus credenciales de base de datos y JWT_SECRET
-
-# Aplicar migraciones de base de datos
-npx prisma migrate dev
-
-# Sembrar datos de prueba (opcional)
-npm run db:seed
+# Instalar dependencias
+npm run install:all
 ```
+
+### Configurar variables de entorno
+
+```bash
+# Backend (backend/.env)
+cp backend/.env.example backend/.env
+# Edita con tu DATABASE_URL de PostgreSQL y JWT_SECRET
+
+# Frontend (frontend/.env)
+cp frontend/.env.example frontend/.env
+# Por defecto apunta a http://localhost:3000/api
+```
+
+### Base de datos
+
+Elige **una** de estas opciones según tu situación:
+
+#### Opción A — Primera vez del equipo (BD nueva o vacía)
+
+```bash
+cd backend
+npx prisma migrate dev    # crea esquema desde cero
+npm run db:seed           # datos de prueba
+```
+
+#### Opción B — Unirse al proyecto (BD compartida de Neon ya existe)
+
+```bash
+cd backend
+npx prisma migrate deploy  # aplica migraciones pendientes (NO interactivo)
+```
+
+> **No necesitas `db:seed`** — los datos ya existen en la BD compartida. El seed es idempotente, así que ejecutarlo no causará duplicados, pero tampoco es necesario.
 
 ### Arrancar en desarrollo
 

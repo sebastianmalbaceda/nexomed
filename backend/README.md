@@ -15,8 +15,26 @@ API REST para gestión clínica hospitalaria — Proyecto LIS UAB 2026.
 ```bash
 npm install
 cp .env.example .env  # si no existe
-npm run db:seed       # poblar datos de prueba
-npm run dev           # servidor en puerto 3000
+```
+
+### Base de datos
+
+**Primera vez (BD nueva):**
+```bash
+npx prisma migrate dev    # crea esquema
+npm run db:seed           # datos de prueba
+```
+
+**Unirse al proyecto (BD compartida ya existe):**
+```bash
+npx prisma migrate deploy  # aplica migraciones pendientes
+# NO necesitas db:seed
+```
+
+### Arrancar
+
+```bash
+npm run dev      # servidor en puerto 3000
 ```
 
 ## Documentación API
