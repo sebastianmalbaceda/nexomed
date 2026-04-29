@@ -319,7 +319,7 @@ export default function BedMapPage() {
                     <button
                       onClick={() => {
                         setSelectedBed(null);
-                        navigate(`/history`);
+                        navigate(`/history?patientId=${selectedBed.patient!.id}`);
                       }}
                       className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
                     >

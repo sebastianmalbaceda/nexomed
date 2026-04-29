@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { History, Loader2, ChevronDown, Clock, Pill, Activity, FileText, User, TestTube, FlaskConical, ImageIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CARE_RECORD_TYPE_LABELS } from '@/lib/constants';
@@ -30,9 +31,15 @@ const TYPE_PILL_ACTIVE: Record<string, string> = {
 
 export default function UnifiedHistoryPage() {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'care' | 'meds' | 'tests'>('care');
+
+  useEffect(() => {
+    const pid = searchParams.get('patientId');
+    if (pid) setSelectedPatientId(pid);
+  }, [searchParams]);
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
