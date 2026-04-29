@@ -36,8 +36,6 @@ function toMin(hhmm: string): number {
   return h * 60 + (m || 0);
 }
 
-interface ScheduleOverride { startHour: number; freqHrs: number; }
-
 function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   const start = new Date(startTime);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -59,6 +57,8 @@ function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   }
   return times;
 }
+
+interface ScheduleOverride { startHour: number; freqHrs: number; }
 
 export default function NursePage() {
   const qc = useQueryClient();
