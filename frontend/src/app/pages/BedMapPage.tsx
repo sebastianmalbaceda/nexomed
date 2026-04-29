@@ -207,9 +207,9 @@ export default function BedMapPage() {
                         <div className="mt-2">
                           <div className="flex items-center gap-1.5">
                             <span className="text-base">{getPatientEmoji(patient.dob)}</span>
-                            <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
-                              {patient.name}
-                            </p>
+<p className="font-semibold text-slate-800 text-xs leading-tight truncate">
+                               {patient.name} {patient.surnames}
+                             </p>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
                             {patient.allergies.length > 0 && (
@@ -263,9 +263,9 @@ export default function BedMapPage() {
                        {getPatientEmoji(selectedBed.patient.dob)}
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-white leading-tight">
-                        {selectedBed.patient.name}
-                      </h3>
+<h3 className="text-lg font-bold text-white leading-tight">
+                         {selectedBed.patient.name} {selectedBed.patient.surnames}
+                       </h3>
                       <p className="text-blue-300 text-xs font-bold mt-1">NHC: {selectedBed.patient.dni || selectedBed.patient.id.slice(0, 8).toUpperCase()}</p>
                     </div>
                   </div>
@@ -454,29 +454,8 @@ export default function BedMapPage() {
                         </button>
                       </div>
                     </div>
-                  )}
-
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => admitMutation.mutate(selectedBed.id)}
-                          disabled={!form.name.trim() || !form.dob || !form.diagnosis.trim() || !form.gender || admitMutation.isPending}
-                          className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {admitMutation.isPending
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <UserPlus className="w-4 h-4" />}
-                          Confirmar
-                        </button>
-                        <button
-                          onClick={() => { setShowAdmitForm(false); setForm(EMPTY_FORM); setAdmitError(''); }}
-                          className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                 </div>
               )}
             </div>
           </div>
@@ -495,7 +474,7 @@ export default function BedMapPage() {
               <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-black text-slate-900">Reubicar Paciente</h3>
-                  <p className="text-xs text-slate-500 mt-1">{selectedBed.patient.name} → Hab. {selectedBed.room} Cama {selectedBed.letter}</p>
+                  <p className="text-xs text-slate-500 mt-1">{selectedBed.patient.name} {selectedBed.patient.surnames} → Hab. {selectedBed.room} Cama {selectedBed.letter}</p>
                 </div>
                 <button 
                   onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
