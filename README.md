@@ -119,7 +119,7 @@ nexomed/
 ├── frontend/          ← React + Vite (SPA)
 ├── backend/           ← Node.js + Express (API REST)
 ├── docs/              ← Documentación técnica extendida
-├── .claude/skills/    ← Skills para agentes IA
+├── .agents/skills/      ← Skills para agentes IA
 └── [archivos raíz]    ← README, SPEC, AGENTS, etc.
 ```
 

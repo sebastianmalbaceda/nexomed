@@ -131,7 +131,7 @@ Genera tests para la funcionalidad implementada en [COMPONENTE/ENDPOINT].
 Lee:
 - SPEC.md — comportamiento esperado (requisitos cubiertos: [IDs])
 - AGENTS.md — convenciones de testing
-- .claude/skills/generate-tests/SKILL.md — procedimiento de testing del proyecto
+- .agents/skills/test-driven-development/SKILL.md — procedimiento de testing del proyecto
 
 Cobertura obligatoria:
 1. Happy path completo

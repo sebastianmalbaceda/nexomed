@@ -497,13 +497,17 @@ window. The agent only loads what the current task needs.
 ### Skill Locations
 
 ```
+# OpenCode
+.agents/skills/             ← project-level, shared via git
+~/.agents/skills/           ← personal, applies to all projects
+
 # Claude Code
-.claude/skills/           ← project-level, shared via git
-~/.claude/skills/         ← personal, applies to all projects
+.claude/skills/             ← project-level
+~/.claude/skills/           ← user-level
 
 # OpenAI Codex
-.codex/skills/            ← repo-level
-~/.codex/skills/          ← user-level
+.codex/skills/              ← repo-level
+~/.codex/skills/            ← user-level
 
 # GitHub Copilot (VS Code)
 .github/agents/           ← repository-level agent definitions

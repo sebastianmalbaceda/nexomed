@@ -89,7 +89,7 @@ nexomed/
 ├── SPEC.md                ← Fuente de verdad de requisitos
 ├── ARCHITECTURE.md        ← Diseño técnico del sistema
 ├── PLANNING.md            ← Tareas activas (leer antes de escribir código)
-└── .claude/skills/        ← Skills de procedimientos específicos
+└── .agents/skills/        ← Skills de procedimientos específicos (7 skills)
 ```
 
 ---
@@ -197,6 +197,10 @@ VITE_API_URL="http://localhost:3000/api"
 
 Carga el skill apropiado antes de realizar tareas especializadas:
 
-- `.claude/skills/generate-tests/SKILL.md` — para escribir tests del proyecto
-- `.claude/skills/create-api-endpoint/SKILL.md` — para crear nuevos endpoints REST
-- `.claude/skills/code-review/SKILL.md` — para revisar código del proyecto
+- `.agents/skills/impeccable/` — Hardening de UI/UX, edge cases, errores de API y accesibilidad
+- `.agents/skills/shadcn/` — Gestión de componentes Radix/Shadcn (ciclo de vida, composición, estilos)
+- `.agents/skills/vercel-react-best-practices/` — Rendimiento React/Vite/TanStack Query (waterfalls, bundle, re-renders)
+- `.agents/skills/typescript-advanced-types/` — Tipos estrictos para contratos API, schemas Zod y stores Zustand
+- `.agents/skills/test-driven-development/` — Metodología TDD aplicada a lógica clínica y servicios
+- `.agents/skills/systematic-debugging/` — Flujo estructurado de depuración e instrumentación en monorepo
+- `.agents/skills/verification-before-completion/` — Gate de validación obligatoria antes de marcar tareas como completadas
