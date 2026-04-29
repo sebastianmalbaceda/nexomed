@@ -14,12 +14,30 @@ export const getMedications = async (req: AuthRequest, res: Response) => {
     const medications = await prisma.medication.findMany({
       where: { patientId, active: true },
       include: {
-        schedules: { orderBy: { scheduledAt: 'asc' } },
+        schedules: {
+          orderBy: { scheduledAt: 'asc' },
+          include: {
+            administeredBy: { select: { name: true } }
+          }
+        },
         prescribedBy: { select: { name: true, role: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(medications);
+
+    const serialized = medications.map(med => ({
+      ...med,
+      prescribedById: med.prescribedBy?.name,
+      schedules: med.schedules.map(s => ({
+        id: s.id,
+        medicationId: s.medicationId,
+        scheduledAt: s.scheduledAt,
+        administeredAt: s.administeredAt,
+        administeredBy: s.administeredBy?.name || null,
+      }))
+    }));
+
+    res.json(serialized);
   } catch (error) {
     return handlePrismaError(error, res);
   }

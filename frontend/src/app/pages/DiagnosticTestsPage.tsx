@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TestTube, FlaskConical, ImageIcon, Loader2, ChevronDown,
-  Plus, X, Calendar, CheckCircle2, Clock, Pencil, Trash2, Check, Ban,
+  Plus, X, Calendar, CheckCircle2, Clock, Pencil, Trash2, Check, Ban, FileText,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import type { AuthUser } from '@/store/authStore';
 import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
 export default function DiagnosticTestsPage() {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
+  const isNurse = user?.role === 'NURSE';
   const queryClient = useQueryClient();
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -62,13 +62,11 @@ export default function DiagnosticTestsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Pruebas Diagnósticas</h1>
         <p className="text-slate-500 text-sm font-medium mt-1">Visualización y programación de pruebas por paciente</p>
       </div>
 
-      {/* Stats — fully colored cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl bg-blue-500 p-5 text-white shadow-lg shadow-blue-100">
           <p className="text-blue-100 text-xs font-bold uppercase tracking-wide mb-1">Total pruebas</p>
@@ -92,7 +90,6 @@ export default function DiagnosticTestsPage() {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative">
           <select
@@ -124,7 +121,6 @@ export default function DiagnosticTestsPage() {
         )}
       </div>
 
-      {/* MED-RF3: Schedule form */}
       {showForm && selectedPatientId && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
@@ -162,7 +158,6 @@ export default function DiagnosticTestsPage() {
         </div>
       )}
 
-      {/* Patient info strip */}
       {selectedPatient && (
         <div className="bg-slate-900 rounded-2xl px-5 py-3 flex items-center gap-4">
           <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center text-lg shrink-0">
@@ -204,10 +199,10 @@ export default function DiagnosticTestsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <TestSection title="Pruebas de Laboratorio" icon={FlaskConical} tests={labTests}
             emptyLabel="Sin pruebas de laboratorio" headerBg="bg-orange-500" accentBorder="border-t-orange-500"
-            isDoctor={isDoctor} selectedPatientId={selectedPatientId} user={user} />
+            isDoctor={isDoctor} isNurse={isNurse} selectedPatientId={selectedPatientId} />
           <TestSection title="Diagnóstico por Imagen" icon={ImageIcon} tests={imagingTests}
             emptyLabel="Sin pruebas de imagen" headerBg="bg-violet-500" accentBorder="border-t-violet-500"
-            isDoctor={isDoctor} selectedPatientId={selectedPatientId} user={user} />
+            isDoctor={isDoctor} isNurse={isNurse} selectedPatientId={selectedPatientId} />
         </div>
       )}
     </div>
@@ -215,7 +210,7 @@ export default function DiagnosticTestsPage() {
 }
 
 function TestSection({
-  title, icon: Icon, tests, emptyLabel, headerBg, accentBorder, isDoctor, selectedPatientId, user,
+  title, icon: Icon, tests, emptyLabel, headerBg, accentBorder, isDoctor, isNurse, selectedPatientId,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -224,14 +219,16 @@ function TestSection({
   headerBg: string;
   accentBorder: string;
   isDoctor: boolean;
+  isNurse: boolean;
   selectedPatientId: string;
-  user: AuthUser | null;
 }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editStatus, setEditStatus] = useState('');
+  const [showResultInput, setShowResultInput] = useState<string | null>(null);
+  const [resultText, setResultText] = useState('');
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; scheduledAt?: string; status?: string } }) =>
@@ -239,6 +236,16 @@ function TestSection({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
       setEditingId(null);
+    },
+  });
+
+  const resultMutation = useMutation({
+    mutationFn: ({ id, result }: { id: string; result: string }) =>
+      api.put(`/tests/${id}/result`, { result }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+      setShowResultInput(null);
+      setResultText('');
     },
   });
 
@@ -287,6 +294,11 @@ function TestSection({
     }
   };
 
+  const handleSaveResult = (id: string) => {
+    if (!resultText.trim()) return;
+    resultMutation.mutate({ id, result: resultText.trim() });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -315,6 +327,7 @@ function TestSection({
           {tests.map((t) => {
             const statusBadge = getStatusBadge(t.status || 'PENDING');
             const isEditing = editingId === t.id;
+            const isShowingResult = showResultInput === t.id;
 
             return (
               <li key={t.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
@@ -373,30 +386,29 @@ function TestSection({
                       {new Date(t.scheduledAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </div>
                     {t.result && (
-                      <p className="text-xs bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-slate-700 mt-2">
-                        <span className="font-bold text-emerald-700">Resultado: </span>{t.result}
-                      </p>
+                      <div className="text-xs bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-slate-700 mt-2">
+                        <span className="font-bold text-emerald-700 flex items-center gap-1 mb-1">
+                          <FileText className="w-3 h-3" />Resultado:
+                        </span>
+                        <p className="font-medium">{t.result}</p>
+                      </div>
                     )}
                     <p className="text-[10px] text-slate-400 mt-1">Solicitado por: {t.requestedBy}</p>
 
-                    {(isDoctor || user?.role === 'NURSE') && t.status === 'PENDING' && (
+                    {(isDoctor || isNurse) && t.status === 'PENDING' && (
                       <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
-                        {t.status === 'PENDING' && (
-                          <>
-                            <button
-                              onClick={() => handleStatusChange(t.id, 'COMPLETED')}
-                              className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold"
-                            >
-                              <Check className="w-3 h-3" />Marcar realizado
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(t.id, 'CANCELLED')}
-                              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-bold"
-                            >
-                              <Ban className="w-3 h-3" />Cancelar
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => handleStatusChange(t.id, 'COMPLETED')}
+                          className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold"
+                        >
+                          <Check className="w-3 h-3" />Marcar realizado
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(t.id, 'CANCELLED')}
+                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-bold"
+                        >
+                          <Ban className="w-3 h-3" />Cancelar
+                        </button>
                       </div>
                     )}
 
@@ -408,12 +420,48 @@ function TestSection({
                         >
                           <Pencil className="w-3 h-3" />Editar
                         </button>
+                        {!isShowingResult && (
+                          <button
+                            onClick={() => { setShowResultInput(t.id); setResultText(t.result || ''); }}
+                            className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold"
+                          >
+                            <FileText className="w-3 h-3" />Añadir resultado
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(t.id)}
                           className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-bold ml-auto"
                         >
                           <Trash2 className="w-3 h-3" />Eliminar
                         </button>
+                      </div>
+                    )}
+
+                    {isDoctor && isShowingResult && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                        <p className="text-xs font-bold text-slate-500">Resultado de la prueba</p>
+                        <textarea
+                          value={resultText}
+                          onChange={(e) => setResultText(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y"
+                          placeholder="Introduce los resultados..."
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveResult(t.id)}
+                            disabled={!resultText.trim() || resultMutation.isPending}
+                            className="flex items-center gap-1 bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-600 disabled:opacity-50"
+                          >
+                            {resultMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            Guardar resultado
+                          </button>
+                          <button
+                            onClick={() => { setShowResultInput(null); setResultText(''); }}
+                            className="flex items-center gap-1 bg-slate-400 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-slate-500"
+                          >
+                            <X className="w-3 h-3" />Cancelar
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>

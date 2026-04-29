@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { POLLING_INTERVAL_MS, NOTIFICATION_TYPE_LABELS } from '@/lib/constants';
-import type { Patient, Medication, CareRecord, Notification } from '@/lib/types';
+import type { Patient, Medication, CareRecord, Notification, MedSchedule } from '@/lib/types';
 
 const CARE_TYPES = [
   { value: 'cura',      label: '🩹 Cura / Herida' },
@@ -31,7 +31,13 @@ function shiftLabel(date: Date): string {
   return '🌙 Noche';
 }
 
-/** Returns today's dose times for a medication */
+function toMin(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+interface ScheduleOverride { startHour: number; freqHrs: number; }
+
 function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   const start = new Date(startTime);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -54,14 +60,6 @@ function calcDoseTimes(startTime: string, frequencyHrs: number): string[] {
   return times;
 }
 
-/** Numeric minutes for a "HH:MM" string — avoids locale comparison issues */
-function toMin(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + (m || 0);
-}
-
-interface ScheduleOverride { startHour: number; freqHrs: number; }
-
 export default function NursePage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -70,7 +68,6 @@ export default function NursePage() {
   const [careNotes, setCareNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [administered, setAdministered] = useState<Set<string>>(new Set());
   const [scheduleOverrides, setScheduleOverrides] = useState<Record<string, ScheduleOverride>>({});
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [editStartHour, setEditStartHour] = useState(8);
@@ -116,7 +113,14 @@ export default function NursePage() {
     onError: (e: Error) => { setErrorMsg(e.message); setSuccessMsg(''); },
   });
 
-  /** Bug fix: don't use %24 — stop before 24h so midnight isn't included */
+  const administerMutation = useMutation({
+    mutationFn: (scheduleId: string) =>
+      api.post(`/medications/schedules/${scheduleId}/administer`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medications', selectedId] });
+    },
+  });
+
   function getMedTimes(med: Medication): string[] {
     const ov = scheduleOverrides[med.id];
     if (ov) {
@@ -128,32 +132,20 @@ export default function NursePage() {
     return calcDoseTimes(med.startTime, med.frequencyHrs);
   }
 
-  const toggleAdmin = (medId: string, time: string) => {
-    setAdministered((prev) => {
-      const s = new Set(prev);
-      if (s.has(`${medId}__${time}`)) {
-        s.delete(`${medId}__${time}`);
-      } else {
-        s.add(`${medId}__${time}`);
-      }
-      return s;
-    });
-  };
-
-  const pendingMeds = medications.reduce((acc, med) =>
-    acc + getMedTimes(med).filter((t) => !administered.has(`${med.id}__${t}`)).length, 0);
-
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+
+  const pendingMeds = medications.reduce((acc, med) => {
+    if (!med.schedules) return acc;
+    return acc + med.schedules.filter((s: MedSchedule) => !s.administeredAt).length;
+  }, 0);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vista Enfermero/a</h1>
         <p className="text-slate-500 text-sm font-medium mt-1">Ficha del paciente · Medicación · Registro de cuidados</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-2xl bg-blue-500 p-5 text-white shadow-lg shadow-blue-100">
           <p className="text-blue-100 text-xs font-bold uppercase tracking-wide mb-1">Pacientes</p>
@@ -179,7 +171,6 @@ export default function NursePage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Patient list */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-4 py-3 bg-slate-800 flex items-center justify-between">
             <p className="text-xs font-black text-white uppercase tracking-widest">Pacientes</p>
@@ -222,7 +213,6 @@ export default function NursePage() {
           )}
         </div>
 
-        {/* Detail panel */}
         <div className="lg:col-span-2 space-y-4">
           {!selected ? (
             <div className="bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
@@ -231,7 +221,6 @@ export default function NursePage() {
             </div>
           ) : (
             <>
-              {/* ENF-RF3: Medication change banner */}
               {medNotifications.length > 0 && (
                 <div className="bg-amber-50 border-l-4 border-amber-400 rounded-2xl px-5 py-4 flex items-start gap-3 shadow-sm shadow-amber-100">
                   <div className="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
@@ -250,7 +239,6 @@ export default function NursePage() {
                 </div>
               )}
 
-              {/* Patient card */}
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className="bg-slate-900 px-5 py-4 flex items-center gap-3">
                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl shrink-0">
@@ -288,7 +276,6 @@ export default function NursePage() {
                 </div>
               </div>
 
-              {/* SYS-RF1 + ENF-RF2: Medication */}
               <div className="bg-white border border-slate-200 border-t-4 border-t-orange-400 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
                   <div className="w-7 h-7 rounded-xl bg-orange-500 flex items-center justify-center">
@@ -305,9 +292,9 @@ export default function NursePage() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {medications.map((m) => {
-                      const times = getMedTimes(m);
-                      const allDone = times.every((t) => administered.has(`${m.id}__${t}`));
-                      const someDone = times.some((t) => administered.has(`${m.id}__${t}`));
+                      const schedules: MedSchedule[] = m.schedules || [];
+                      const allDone = schedules.length > 0 && schedules.every((s) => s.administeredAt);
+                      const someDone = schedules.some((s) => s.administeredAt);
                       const isEditing = editingMedId === m.id;
 
                       return (
@@ -339,7 +326,6 @@ export default function NursePage() {
                             </button>
                           </div>
 
-                          {/* ENF-RF2: Schedule editor */}
                           {isEditing && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
                               <p className="text-xs font-black text-amber-800 uppercase tracking-wide mb-2">Cambiar horario — recálculo automático</p>
@@ -377,16 +363,19 @@ export default function NursePage() {
                             </div>
                           )}
 
-                          {/* Dose time slots — fixed comparison using numeric minutes */}
                           <div className="flex flex-wrap gap-2">
-                            {times.map((t) => {
-                              const done = administered.has(`${m.id}__${t}`);
-                              const isPast = toMin(t) <= nowMin;
+                            {schedules.length > 0 ? schedules.map((s) => {
+                              const done = !!s.administeredAt;
+                              const scheduledTime = new Date(s.scheduledAt);
+                              const timeStr = `${String(scheduledTime.getHours()).padStart(2, '0')}:${String(scheduledTime.getMinutes()).padStart(2, '0')}`;
+                              const isPast = toMin(timeStr) <= nowMin;
+
                               return (
                                 <button
-                                  key={t}
-                                  onClick={() => toggleAdmin(m.id, t)}
-                                  title={done ? 'Desmarcar' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
+                                  key={s.id}
+                                  onClick={() => { if (!done) administerMutation.mutate(s.id); }}
+                                  disabled={done || administerMutation.isPending}
+                                  title={done ? 'Administrado' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
                                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold transition-all ${
                                     done
                                       ? 'bg-emerald-100 border-emerald-300 text-emerald-700 line-through opacity-60'
@@ -396,10 +385,22 @@ export default function NursePage() {
                                   }`}
                                 >
                                   {done ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                  {t}
+                                  {timeStr}
                                 </button>
                               );
-                            })}
+                            }) : (
+                              <div className="flex flex-wrap gap-2">
+                                {getMedTimes(m).map((t) => (
+                                  <span
+                                    key={t}
+                                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold bg-slate-100 border-slate-200 text-slate-500"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -408,7 +409,6 @@ export default function NursePage() {
                 )}
               </div>
 
-              {/* Care registration */}
               <div className="bg-white border border-slate-200 border-t-4 border-t-emerald-400 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
                   <div className="w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center">
@@ -448,7 +448,6 @@ export default function NursePage() {
                 </div>
               </div>
 
-              {/* History */}
               <div className="bg-white border border-slate-200 border-t-4 border-t-blue-400 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
                   <div className="w-7 h-7 rounded-xl bg-blue-500 flex items-center justify-center">

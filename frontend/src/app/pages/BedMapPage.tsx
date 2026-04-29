@@ -61,8 +61,10 @@ export default function BedMapPage() {
   const roomsGrouped: RoomGroup[] = useMemo(() => {
     const map = new Map<number, Bed[]>();
     for (const bed of beds) {
-      if (!map.has(bed.room)) map.set(bed.room, []);
-      map.get(bed.room)!.push(bed);
+      if (bed.patient) {
+        if (!map.has(bed.room)) map.set(bed.room, []);
+        map.get(bed.room)!.push(bed);
+      }
     }
     return Array.from(map.entries())
       .sort(([a], [b]) => a - b)
@@ -124,7 +126,6 @@ export default function BedMapPage() {
   });
 
   const occupiedCount = beds.filter(b => b.patient).length;
-  const freeCount = beds.length - occupiedCount;
 
   return (
     <div className="relative min-h-screen bg-[#f9fafb] p-4 md:p-8 overflow-hidden font-sans">
@@ -137,7 +138,7 @@ export default function BedMapPage() {
                <span className="text-slate-400 text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Turno Mañana</span>
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mapa de Camas</h1>
-            <p className="text-slate-500 text-sm font-medium">12 habitaciones · 24 camas · {occupiedCount} ocupadas · {freeCount} libres</p>
+            <p className="text-slate-500 text-sm font-medium">{occupiedCount} camas ocupadas</p>
           </div>
 
           <div className="relative w-full md:w-80">
@@ -156,6 +157,11 @@ export default function BedMapPage() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {isLoading ? (
           <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
+        ) : filteredRooms.length === 0 ? (
+          <div className="col-span-full py-20 text-center">
+            <BedDouble className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-400 font-bold">No hay camas ocupadas</p>
+          </div>
         ) : (
           filteredRooms.map((roomGroup) => (
             <div key={roomGroup.room} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
