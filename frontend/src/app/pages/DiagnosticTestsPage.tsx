@@ -237,6 +237,22 @@ function TestSection({
       queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
       setEditingId(null);
     },
+    onError: (e: Error) => {
+      console.error('Error updating test:', e.message);
+      alert(`Error al actualizar: ${e.message}`);
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.put(`/tests/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+    },
+    onError: (e: Error) => {
+      console.error('Error changing status:', e.message);
+      alert(`Error al cambiar estado: ${e.message}`);
+    },
   });
 
   const resultMutation = useMutation({
@@ -247,12 +263,20 @@ function TestSection({
       setShowResultInput(null);
       setResultText('');
     },
+    onError: (e: Error) => {
+      console.error('Error saving result:', e.message);
+      alert(`Error al guardar resultado: ${e.message}`);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/tests/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
+    },
+    onError: (e: Error) => {
+      console.error('Error deleting test:', e.message);
+      alert(`Error al eliminar: ${e.message}`);
     },
   });
 
@@ -282,13 +306,12 @@ function TestSection({
   };
 
   const handleStatusChange = (id: string, newStatus: string) => {
-    updateMutation.mutate({
-      id,
-      data: { status: newStatus },
-    });
+    console.log('handleStatusChange called:', { id, newStatus });
+    statusMutation.mutate({ id, status: newStatus });
   };
 
   const handleDelete = (id: string) => {
+    console.log('handleDelete called:', id);
     if (confirm('¿Estás seguro de que quieres eliminar esta prueba?')) {
       deleteMutation.mutate(id);
     }

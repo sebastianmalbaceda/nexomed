@@ -41,6 +41,8 @@ model Patient {
   isolationRestriction String?
   mobilityRestriction  String?
   admissionDate        DateTime  @default(now())
+  discharged           Boolean   @default(false)
+  dischargeDate        DateTime?
   bedId                String?   @unique
   bed                  Bed?      @relation(fields: [bedId], references: [id])
 

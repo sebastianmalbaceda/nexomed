@@ -5,10 +5,11 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPatientSchema, updatePatientSchema } from '../validations/patient.validation';
 import { handlePrismaError } from '../lib/errorHandler';
 
-// GET /api/patients — lista todos los pacientes activos con su cama
+// GET /api/patients — lista pacientes activos (no dados de alta) con su cama
 export const getPatients = async (req: AuthRequest, res: Response) => {
   try {
     const patients = await prisma.patient.findMany({
+      where: { discharged: false },
       include: { bed: true }
     });
     res.json(patients);
@@ -37,7 +38,8 @@ export const getPatientById = async (req: AuthRequest, res: Response) => {
 };
 
 // POST /api/patients — dar de alta un paciente
-// Si el DNI ya existe → re-ingreso: actualiza diagnóstico, cama y fecha de admisión
+// Si el DNI ya existe y está dado de alta → re-ingreso: actualiza datos, marca discharged=false
+// Si el DNI ya existe y NO está dado de alta → error (ya hay un paciente activo con ese DNI)
 // Si no existe → crea nuevo paciente
 export const createPatient = async (req: AuthRequest, res: Response) => {
   const validation = createPatientSchema.safeParse(req.body);
@@ -55,14 +57,20 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
       const existing = await prisma.patient.findFirst({ where: { dni } });
 
       if (existing) {
-        // Re-ingreso: actualizar datos clínicos y asignar nueva cama
+        if (!existing.discharged) {
+          return res.status(409).json({ error: 'Ya existe un paciente activo con este DNI' });
+        }
+        // Re-ingreso: actualizar datos clínicos, asignar nueva cama y marcar como no dado de alta
         const patient = await prisma.patient.update({
           where: { id: existing.id },
           data: {
+            name,
             diagnosis,
             allergies,
             bedId: bedId ?? null,
             admissionDate: new Date(),
+            discharged: false,
+            dischargeDate: null,
             ...(dietRestriction !== undefined ? { dietRestriction } : {}),
             ...(isolationRestriction !== undefined ? { isolationRestriction } : {}),
             ...(mobilityRestriction !== undefined ? { mobilityRestriction } : {}),
@@ -111,13 +119,17 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// PUT /api/patients/:id/discharge — dar de baja (desvincula la cama)
+// PUT /api/patients/:id/discharge — dar de alta (marca discharged=true, desvincula cama)
 export const dischargePatient = async (req: AuthRequest, res: Response) => {
   const { id } = req.params as { id: string };
   try {
     const patient = await prisma.patient.update({
       where: { id },
-      data: { bedId: null }
+      data: {
+        discharged: true,
+        dischargeDate: new Date(),
+        bedId: null
+      }
     });
     res.json(patient);
   } catch (error) {

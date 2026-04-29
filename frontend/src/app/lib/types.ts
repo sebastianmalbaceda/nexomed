@@ -23,6 +23,9 @@ export interface Patient {
   mobilityRestriction: string | null;
   /** ISO date string */
   admissionDate: string;
+  discharged: boolean;
+  /** ISO date string or null */
+  dischargeDate: string | null;
   bedId: string | null;
   bed?: Bed;
 }

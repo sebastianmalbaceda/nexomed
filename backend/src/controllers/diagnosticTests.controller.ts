@@ -175,8 +175,10 @@ export const addTestResult = async (req: AuthRequest, res: Response) => {
 // PUT /api/tests/:id — actualizar prueba (solo DOCTOR)
 export const updateDiagnosticTest = async (req: AuthRequest, res: Response) => {
   const { id } = req.params as { id: string };
+  console.log('[updateDiagnosticTest] id:', id, 'body:', req.body, 'user:', req.user);
   const validation = updateDiagnosticTestSchema.safeParse(req.body);
   if (!validation.success) {
+    console.log('[updateDiagnosticTest] validation error:', validation.error.issues[0].message);
     return res.status(400).json({ error: validation.error.issues[0].message });
   }
 
@@ -200,10 +202,12 @@ export const updateDiagnosticTest = async (req: AuthRequest, res: Response) => {
 // DELETE /api/tests/:id — eliminar prueba (solo DOCTOR)
 export const deleteDiagnosticTest = async (req: AuthRequest, res: Response) => {
   const { id } = req.params as { id: string };
+  console.log('[deleteDiagnosticTest] id:', id, 'user:', req.user);
   try {
     await prisma.diagnosticTest.delete({ where: { id } });
     res.json({ success: true, message: 'Prueba eliminada correctamente' });
   } catch (error) {
+    console.error('[deleteDiagnosticTest] error:', error);
     return handlePrismaError(error, res);
   }
 };
