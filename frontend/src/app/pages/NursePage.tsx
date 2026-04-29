@@ -143,9 +143,6 @@ export default function NursePage() {
     )
   );
 
-  const pendingMeds = medications.reduce((acc, med) =>
-    acc + getMedTimes(med).filter((t) => !administered.has(`${med.id}__${t}`)).length, 0);
-
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
 
   const pendingMeds = medications.reduce((acc, med) => {
