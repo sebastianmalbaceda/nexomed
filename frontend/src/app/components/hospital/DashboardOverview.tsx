@@ -231,7 +231,7 @@ export function DashboardOverview() {
                   onClick={() => navigate('/beds')}
                   title={
                     bed.patient
-                      ? `${bed.patient.name} — Hab. ${bed.room}${bed.letter}`
+                      ? `${bed.patient.name} ${bed.patient.surnames} — Hab. ${bed.room}${bed.letter}`
                       : `Hab. ${bed.room}${bed.letter} — Libre`
                   }
                   className={`w-10 h-10 rounded-lg border-2 text-xs font-semibold transition-colors ${

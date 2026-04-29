@@ -11,7 +11,8 @@ import {
   UserPlus, 
   Clock,
   ArrowRightLeft,
-  Check
+  Check,
+  Pill
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -77,7 +78,11 @@ export default function BedMapPage() {
 
   const filteredRooms = roomsGrouped.filter(room =>
     room.room.toString().includes(searchTerm) ||
-    room.beds.some(b => b.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    room.beds.some(b =>
+      b.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.patient?.surnames.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.patient?.dni?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
   const dischargeMutation = useMutation({
@@ -316,6 +321,14 @@ export default function BedMapPage() {
                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
                       >
                         <ArrowRightLeft className="w-4 h-4" /> Reubicar Paciente
+                      </button>
+                    )}
+                    {user?.role === 'DOCTOR' && (
+                      <button
+                        onClick={() => navigate(`/patients/${selectedBed.patient!.id}`)}
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
+                      >
+                        <Pill className="w-4 h-4" /> Pautar Medicación
                       </button>
                     )}
                     <button

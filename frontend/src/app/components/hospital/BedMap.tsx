@@ -399,7 +399,7 @@ export function BedMap({ currentRole }: BedMapProps) {
                         <>
                           <div className="flex items-center gap-1 mb-1">
                             <User className="w-3 h-3 text-muted-foreground" />
-                            <span className="text-xs text-foreground truncate">{bed.patient.name.split(' ')[0]}</span>
+                            <span className="text-xs text-foreground truncate">{bed.patient.name} {bed.patient.surnames}</span>
                           </div>
                           {getAlertCount(bed) > 0 && (
                             <div className="flex items-center gap-1">
@@ -442,7 +442,7 @@ export function BedMap({ currentRole }: BedMapProps) {
                         <User className="w-5 h-5 text-primary-foreground" />
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{selectedBed.patient.name}</p>
+                        <p className="font-semibold text-foreground">{selectedBed.patient.name} {selectedBed.patient.surnames}</p>
                         <p className="text-sm text-muted-foreground">
                           {selectedBed.patient.age} años • {selectedBed.patient.gender === 'M' ? 'Hombre' : 'Mujer'}
                         </p>

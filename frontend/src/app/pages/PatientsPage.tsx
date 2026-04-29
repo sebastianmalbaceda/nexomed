@@ -55,6 +55,31 @@ export default function PatientsPage() {
 
   const isDoctor = user?.role === 'DOCTOR';
 
+  // Formulario de medicación
+  const [showMedForm, setShowMedForm] = useState(false);
+  const [medForm, setMedForm] = useState({
+    drugName: '',
+    nregistro: '',
+    dose: '',
+    route: '',
+    frequencyHrs: 8,
+    startTime: new Date().toISOString().slice(0, 16),
+  });
+
+  const createMedMutation = useMutation({
+    mutationFn: (data: typeof medForm & { patientId: string }) =>
+      api.post('/medications', {
+        ...data,
+        patientId: selectedPatient!.id,
+        frequencyHrs: Number(data.frequencyHrs),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medications', selectedPatient!.id] });
+      setShowMedForm(false);
+      setMedForm({ drugName: '', nregistro: '', dose: '', route: '', frequencyHrs: 8, startTime: new Date().toISOString().slice(0, 16) });
+    },
+  });
+
   // Formulario de registro / re-ingreso
   const [showForm, setShowForm] = useState(false);
   const [dniSearch, setDniSearch] = useState('');
@@ -114,6 +139,8 @@ export default function PatientsPage() {
 
   const filtered = patients.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.surnames.toLowerCase().includes(search.toLowerCase()) ||
+    p.dni?.toLowerCase().includes(search.toLowerCase()) ||
     p.diagnosis.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -181,11 +208,19 @@ export default function PatientsPage() {
             <div className="flex items-center gap-2 mb-4">
               <Pill className="w-5 h-5 text-primary" />
               <h3 className="font-semibold text-foreground">Medicación activa</h3>
+              {isDoctor && (
+                <button
+                  onClick={() => setShowMedForm(!showMedForm)}
+                  className="ml-auto text-xs bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20 transition-colors"
+                >
+                  {showMedForm ? 'Cancelar' : 'Prescribir'}
+                </button>
+              )}
             </div>
             {patientMedications.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin medicación activa</p>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-3 mb-4">
                 {patientMedications.map((med) => (
                   <li key={med.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
                     <p className="font-medium text-foreground">{med.drugName}</p>
@@ -193,6 +228,85 @@ export default function PatientsPage() {
                   </li>
                 ))}
               </ul>
+            )}
+            {showMedForm && isDoctor && (
+              <div className="space-y-3 pt-4 border-t border-border">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Fármaco *</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del fármaco"
+                    value={medForm.drugName}
+                    onChange={(e) => setMedForm(f => ({ ...f, drugName: e.target.value }))}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Nº Registro (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: 123456"
+                    value={medForm.nregistro}
+                    onChange={(e) => setMedForm(f => ({ ...f, nregistro: e.target.value }))}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Dosis *</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: 500mg"
+                      value={medForm.dose}
+                      onChange={(e) => setMedForm(f => ({ ...f, dose: e.target.value }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Vía *</label>
+                    <select
+                      value={medForm.route}
+                      onChange={(e) => setMedForm(f => ({ ...f, route: e.target.value }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Oral">Oral</option>
+                      <option value="Intravenosa">Intravenosa</option>
+                      <option value="Subcutánea">Subcutánea</option>
+                      <option value="Intramuscular">Intramuscular</option>
+                      <option value="Tópica">Tópica</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Frecuencia (horas) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={medForm.frequencyHrs}
+                      onChange={(e) => setMedForm(f => ({ ...f, frequencyHrs: Number(e.target.value) }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Inicio *</label>
+                    <input
+                      type="datetime-local"
+                      value={medForm.startTime}
+                      onChange={(e) => setMedForm(f => ({ ...f, startTime: e.target.value }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => createMedMutation.mutate(medForm)}
+                  disabled={!medForm.drugName || !medForm.dose || !medForm.route || createMedMutation.isPending}
+                  className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {createMedMutation.isPending ? 'Prescribiendo...' : 'Prescribir Medicación'}
+                </button>
+              </div>
             )}
           </div>
 
