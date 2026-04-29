@@ -34,6 +34,7 @@ model Patient {
   id                   String    @id @default(uuid())
   dni                  String?   @unique
   name                 String
+  surnames             String?
   dob                  DateTime
   diagnosis            String
   allergies            String[]

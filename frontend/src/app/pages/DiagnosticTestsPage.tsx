@@ -83,7 +83,7 @@ export default function DiagnosticTestsPage() {
           <p className="text-3xl font-black">{imagingTests.length}</p>
           <ImageIcon className="w-5 h-5 text-violet-200 mt-2" />
         </div>
-        <div className={`rounded-2xl p-5 text-white shadow-lg ${pendingCount > 0 ? 'bg-red-500 shadow-red-100' : 'bg-emerald-500 shadow-emerald-100'}`}>
+        <div className={`rounded-2xl p-5 text-white shadow-lg ${pendingCount > 0 ? 'bg-orange-500 shadow-orange-100' : 'bg-emerald-500 shadow-emerald-100'}`}>
           <p className="text-white/70 text-xs font-bold uppercase tracking-wide mb-1">Pendientes</p>
           <p className="text-3xl font-black">{pendingCount}</p>
           <Calendar className="w-5 h-5 text-white/60 mt-2" />
@@ -329,7 +329,7 @@ function TestSection({
       case 'CANCELLED':
         return { bg: 'bg-red-400', label: 'CANCELADO' };
       default:
-        return { bg: 'bg-amber-500', label: 'PENDIENTE' };
+        return { bg: 'bg-red-500', label: 'PENDIENTE' };
     }
   };
 

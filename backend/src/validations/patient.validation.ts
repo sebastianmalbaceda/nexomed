@@ -2,8 +2,9 @@
 import { z } from 'zod';
 
 export const createPatientSchema = z.object({
-  dni: z.string().min(9, 'El DNI/NIE debe tener al menos 9 caracteres').optional(),
+  dni: z.string().regex(/^\d{9}$/, 'El DNI debe tener exactamente 9 dígitos numéricos').optional(),
   name: z.string().min(1, 'El nombre es obligatorio'),
+  surnames: z.string().min(1, 'Los apellidos son obligatorios'),
   dob: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha de nacimiento inválida'),
   diagnosis: z.string().min(1, 'El diagnóstico es obligatorio'),
   allergies: z.array(z.string()).default([]),
@@ -16,6 +17,7 @@ export const createPatientSchema = z.object({
 export const updatePatientSchema = z.object({
   dni: z.string().min(9, 'El DNI/NIE debe tener al menos 9 caracteres').optional(),
   name: z.string().min(1).optional(),
+  surnames: z.string().min(1).optional(),
   dob: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha de nacimiento inválida').optional(),
   diagnosis: z.string().min(1).optional(),
   allergies: z.array(z.string()).optional(),

@@ -163,7 +163,7 @@ export default function NursePage() {
           <p className="text-3xl font-black">{patients.length}</p>
           <User className="w-5 h-5 text-blue-200 mt-2" />
         </div>
-        <div className={`rounded-2xl p-5 text-white shadow-lg ${pendingMeds > 0 ? 'bg-red-500 shadow-red-100' : 'bg-emerald-500 shadow-emerald-100'}`}>
+        <div className={`rounded-2xl p-5 text-white shadow-lg ${pendingMeds > 0 ? 'bg-orange-500 shadow-orange-100' : 'bg-emerald-500 shadow-emerald-100'}`}>
           <p className="text-white/70 text-xs font-bold uppercase tracking-wide mb-1">Dosis pendientes</p>
           <p className="text-3xl font-black">{pendingMeds}</p>
           <Pill className="w-5 h-5 text-white/60 mt-2" />
@@ -314,7 +314,7 @@ export default function NursePage() {
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-black text-slate-900 text-sm">{m.drugName}</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded text-white ${allDone ? 'bg-emerald-500' : someDone ? 'bg-amber-500' : 'bg-red-500'}`}>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded text-white ${allDone ? 'bg-emerald-500' : someDone ? 'bg-orange-500' : 'bg-orange-500'}`}>
                                   {allDone ? 'COMPLETADO' : someDone ? 'PARCIAL' : 'PENDIENTE'}
                                 </span>
                               </div>

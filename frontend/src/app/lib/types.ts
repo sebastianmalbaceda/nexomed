@@ -14,6 +14,7 @@ export interface Patient {
   id: string;
   dni: string | null;
   name: string;
+  surnames: string;
   /** ISO date string */
   dob: string;
   diagnosis: string;

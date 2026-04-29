@@ -7,14 +7,18 @@ import {
   createPatient,
   updatePatient,
   dischargePatient,
-  getPatientVitals
+  getPatientVitals,
+  searchPatientByDni,
 } from '../controllers/patients.controller';
 import { getCareRecords } from '../controllers/careRecords.controller';
 import { getIncidents } from '../controllers/incidents.controller';
 
 const router = Router();
 
-// GET /api/patients — listar todos los pacientes
+// GET /api/patients/search?dni=XXX — buscar paciente por DNI (para re-ingreso rápido)
+router.get('/search', authenticate, searchPatientByDni);
+
+// GET /api/patients — listar pacientes activos
 router.get('/', authenticate, getPatients);
 
 // GET /api/patients/:patientId/care-records — historial de cuidados (MED-RF1, SYS-RF2)

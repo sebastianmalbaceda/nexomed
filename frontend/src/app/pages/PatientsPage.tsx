@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, LogOut } from 'lucide-react';
+import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, LogOut, UserPlus, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, Medication, CareRecord, VitalSigns } from '@/lib/types';
@@ -55,6 +55,63 @@ export default function PatientsPage() {
 
   const isDoctor = user?.role === 'DOCTOR';
 
+  // Formulario de registro / re-ingreso
+  const [showForm, setShowForm] = useState(false);
+  const [dniSearch, setDniSearch] = useState('');
+  const [dniFound, setDniFound] = useState<Patient | null>(null);
+  const [form, setForm] = useState({
+    dni: '',
+    name: '',
+    surnames: '',
+    dob: '',
+    diagnosis: '',
+    allergies: [] as string[],
+    bedId: '',
+  });
+  const [allergyInput, setAllergyInput] = useState('');
+
+  const searchDniMutation = useMutation({
+    mutationFn: (dni: string) => api.get<Patient>(`/patients/search?dni=${encodeURIComponent(dni)}`),
+    onSuccess: (patient) => {
+      setDniFound(patient);
+      setForm(f => ({
+        ...f,
+        dni: patient.dni ?? '',
+        name: patient.name,
+        surnames: patient.surnames ?? '',
+        dob: patient.dob,
+        diagnosis: '',
+        allergies: [...patient.allergies],
+      }));
+    },
+    onError: () => {
+      setDniFound(null);
+      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', allergies: [] }));
+    },
+  });
+
+  const createPatientMutation = useMutation({
+    mutationFn: (data: typeof form) => api.post('/patients', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      setShowForm(false);
+      setDniSearch('');
+      setDniFound(null);
+      setForm({ dni: '', name: '', dob: '', diagnosis: '', allergies: [], bedId: '' });
+    },
+  });
+
+  const handleAddAllergy = () => {
+    if (allergyInput.trim() && !form.allergies.includes(allergyInput.trim())) {
+      setForm(f => ({ ...f, allergies: [...f.allergies, allergyInput.trim()] }));
+      setAllergyInput('');
+    }
+  };
+
+  const handleRemoveAllergy = (allergy: string) => {
+    setForm(f => ({ ...f, allergies: f.allergies.filter(a => a !== allergy) }));
+  };
+
   const filtered = patients.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.diagnosis.toLowerCase().includes(search.toLowerCase()),
@@ -73,10 +130,13 @@ export default function PatientsPage() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{selectedPatient.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{selectedPatient.name} {selectedPatient.surnames}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {selectedPatient.diagnosis}
             </p>
+            {selectedPatient.dni && (
+              <p className="text-xs text-muted-foreground mt-1">DNI: {selectedPatient.dni}</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {selectedPatient.bed && (
@@ -206,18 +266,181 @@ export default function PatientsPage() {
           </p>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="search"
-            placeholder="Buscar por nombre o diagnóstico..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-72"
-          />
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              placeholder="Buscar por nombre o diagnóstico..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-72"
+            />
+          </div>
+          {isDoctor && (
+            <button
+              onClick={() => { setShowForm(true); setDniSearch(''); setDniFound(null); }}
+              className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Registrar ingreso
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Formulario de registro / re-ingreso */}
+      {showForm && (
+        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Registro de ingreso</h2>
+            <button onClick={() => { setShowForm(false); }} className="text-muted-foreground hover:text-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Búsqueda por DNI */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-foreground mb-1">DNI del paciente</label>
+              <input
+                type="text"
+                placeholder="Buscar por DNI..."
+                value={dniSearch}
+                onChange={(e) => setDniSearch(e.target.value)}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <button
+              onClick={() => searchDniMutation.mutate(dniSearch)}
+              disabled={!dniSearch || searchDniMutation.isPending}
+              className="bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {searchDniMutation.isPending ? 'Buscando...' : 'Buscar'}
+            </button>
+          </div>
+
+          {searchDniMutation.isError && (
+            <p className="text-sm text-muted-foreground">Paciente no encontrado. Puedes registrar uno nuevo con este DNI.</p>
+          )}
+          {dniFound && (
+            <p className="text-sm text-green-600">✓ Paciente encontrado. Datos auto-rellenados (excepto diagnóstico).</p>
+          )}
+
+          {/* Resto del formulario */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">DNI * (9 dígitos)</label>
+              <input
+                type="text"
+                value={form.dni}
+                onChange={(e) => setForm(f => ({ ...f, dni: e.target.value }))}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+                readOnly={!!dniFound}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+                readOnly={!!dniFound}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Apellidos *</label>
+              <input
+                type="text"
+                value={form.surnames}
+                onChange={(e) => setForm(f => ({ ...f, surnames: e.target.value }))}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+                readOnly={!!dniFound}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Fecha de nacimiento *</label>
+              <input
+                type="date"
+                value={form.dob ? new Date(form.dob).toISOString().split('T')[0] : ''}
+                onChange={(e) => setForm(f => ({ ...f, dob: new Date(e.target.value).toISOString() }))}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+                readOnly={!!dniFound}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-1">Diagnóstico actual *</label>
+              <input
+                type="text"
+                placeholder="Diagnóstico del ingreso actual..."
+                value={form.diagnosis}
+                onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-1">Asignar cama (opcional)</label>
+              <select
+                value={form.bedId}
+                onChange={(e) => setForm(f => ({ ...f, bedId: e.target.value || '' }))}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Sin asignar</option>
+                {/* Aquí deberías cargar las camas libres con useQuery */}
+              </select>
+            </div>
+          </div>
+
+          {/* Alergias */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Alergias</label>
+            <div className="flex items-end gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="Añadir alergia..."
+                value={allergyInput}
+                onChange={(e) => setAllergyInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAllergy(); } }}
+                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                onClick={handleAddAllergy}
+                className="bg-secondary text-secondary-foreground text-sm px-3 py-2 rounded-lg hover:bg-secondary/90 transition-colors"
+              >
+                Añadir
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {form.allergies.map(a => (
+                <span key={a} className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+                  {a}
+                  <button onClick={() => handleRemoveAllergy(a)} className="hover:text-destructive/70"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+              {form.allergies.length === 0 && <span className="text-xs text-muted-foreground">Sin alergias</span>}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <button
+              onClick={() => { setShowForm(false); }}
+              className="text-sm px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
+            >
+              Cancelar
+            </button>
+              <button
+                onClick={() => createPatientMutation.mutate(form)}
+                disabled={!form.name || !form.surnames || !form.dob || !form.diagnosis || !form.dni || createPatientMutation.isPending}
+                className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+              <Check className="w-4 h-4" />
+              {createPatientMutation.isPending ? 'Registrando...' : dniFound ? 'Re-ingreso' : 'Registrar ingreso'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {isError && (
         <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm">

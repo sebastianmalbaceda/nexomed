@@ -5,6 +5,22 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPatientSchema, updatePatientSchema } from '../validations/patient.validation';
 import { handlePrismaError } from '../lib/errorHandler';
 
+// GET /api/patients/search?dni=XXX — buscar paciente por DNI (sin filtro discharged)
+export const searchPatientByDni = async (req: AuthRequest, res: Response) => {
+  const { dni } = req.query as { dni?: string };
+  if (!dni) return res.status(400).json({ error: 'DNI requerido' });
+  try {
+    const patient = await prisma.patient.findFirst({
+      where: { dni },
+      include: { bed: true }
+    });
+    if (!patient) return res.status(404).json({ error: 'Paciente no encontrado' });
+    res.json(patient);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
 // GET /api/patients — lista pacientes activos (no dados de alta) con su cama
 export const getPatients = async (req: AuthRequest, res: Response) => {
   try {
@@ -48,7 +64,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
   }
 
   const {
-    dni, name, dob, diagnosis, allergies, bedId,
+    dni, name, surnames, dob, diagnosis, allergies, bedId,
     dietRestriction, isolationRestriction, mobilityRestriction,
   } = validation.data;
 
@@ -65,6 +81,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
           where: { id: existing.id },
           data: {
             name,
+            surnames: surnames ?? existing.surnames,
             diagnosis,
             allergies,
             bedId: bedId ?? null,
@@ -84,7 +101,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
     // Alta nueva
     const patient = await prisma.patient.create({
       data: {
-        dni, name, dob: new Date(dob), diagnosis, allergies, bedId,
+        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, allergies, bedId,
         dietRestriction, isolationRestriction, mobilityRestriction,
       },
       include: { bed: true }
