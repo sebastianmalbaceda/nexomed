@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   BedDouble, 
@@ -8,13 +8,14 @@ import {
   Loader2, 
   LogOut, 
   UserPlus, 
-  Clock
+  Clock,
+  ArrowRightLeft,
+  Check
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Bed, Patient } from '@/lib/types';
 
-// ── LÓGICA DE EMOJIS POR EDAD ──
 const getPatientEmoji = (dobString: string) => {
   const birthDate = new Date(dobString);
   const age = new Date().getFullYear() - birthDate.getFullYear();
@@ -24,7 +25,6 @@ const getPatientEmoji = (dobString: string) => {
   return "👶";
 };
 
-// ── LÓGICA DE COLORES POR DIAGNÓSTICO ──
 const getStatusStyles = (diagnosis: string = "") => {
   const d = diagnosis.toLowerCase();
   const isCritical = ['crítico', 'critico', 'infarto', 'iam', 'urgente', 'sepsis', 'shock', 'pcr', 'reanimación'].some(k => d.includes(k));
@@ -36,6 +36,11 @@ const getStatusStyles = (diagnosis: string = "") => {
 
 const EMPTY_FORM = { name: '', dob: '', diagnosis: '', allergies: '', gender: '' };
 
+interface RoomGroup {
+  room: number;
+  beds: Bed[];
+}
+
 export default function BedMapPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
@@ -44,11 +49,34 @@ export default function BedMapPage() {
   const [showAdmitForm, setShowAdmitForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [admitError, setAdmitError] = useState('');
+  const [showRelocateModal, setShowRelocateModal] = useState(false);
+  const [relocateTarget, setRelocateTarget] = useState<string | null>(null);
+  const [relocateError, setRelocateError] = useState('');
 
   const { data: beds = [], isLoading } = useQuery({
     queryKey: ['beds'],
     queryFn: () => api.get<Bed[]>('/beds'),
   });
+
+  const roomsGrouped: RoomGroup[] = useMemo(() => {
+    const map = new Map<number, Bed[]>();
+    for (const bed of beds) {
+      if (!map.has(bed.room)) map.set(bed.room, []);
+      map.get(bed.room)!.push(bed);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([room, beds]) => ({ room, beds }));
+  }, [beds]);
+
+  const freeBeds = useMemo(() => 
+    beds.filter(b => !b.patient),
+  [beds]);
+
+  const filteredRooms = roomsGrouped.filter(room =>
+    room.room.toString().includes(searchTerm) ||
+    room.beds.some(b => b.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const dischargeMutation = useMutation({
     mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
@@ -81,15 +109,26 @@ export default function BedMapPage() {
     onError: (e: Error) => setAdmitError(e.message),
   });
 
-  const filteredBeds = beds.filter(b =>
-    b.room.toString().includes(searchTerm) ||
-    b.patient?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const relocateMutation = useMutation({
+    mutationFn: async ({ sourceBedId, targetBedId }: { sourceBedId: string; targetBedId: string }) => {
+      return api.put<Bed>(`/beds/${sourceBedId}/relocate`, { targetBedId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['beds'] });
+      setShowRelocateModal(false);
+      setRelocateTarget(null);
+      setRelocateError('');
+      setSelectedBed(null);
+    },
+    onError: (e: Error) => setRelocateError(e.message),
+  });
+
+  const occupiedCount = beds.filter(b => b.patient).length;
+  const freeCount = beds.length - occupiedCount;
 
   return (
     <div className="relative min-h-screen bg-[#f9fafb] p-4 md:p-8 overflow-hidden font-sans">
       
-      {/* HEADER TIPO DASHBOARD */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -98,14 +137,14 @@ export default function BedMapPage() {
                <span className="text-slate-400 text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Turno Mañana</span>
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mapa de Camas</h1>
-            <p className="text-slate-500 text-sm font-medium">Gestión visual de unidades y pacientes</p>
+            <p className="text-slate-500 text-sm font-medium">12 habitaciones · 24 camas · {occupiedCount} ocupadas · {freeCount} libres</p>
           </div>
 
           <div className="relative w-full md:w-80">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
-              placeholder="Buscar paciente o cama..."
+              placeholder="Buscar paciente o habitación..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 ring-blue-500/20 outline-none transition-all text-sm"
@@ -114,112 +153,99 @@ export default function BedMapPage() {
         </div>
       </div>
 
-      {/* GRID DE TARJETAS */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {isLoading ? (
           <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
         ) : (
-          filteredBeds.map((bed) => {
-            const patient = bed.patient;
-            const isOccupied = !!patient;
-            const styles = isOccupied ? getStatusStyles(patient.diagnosis) : null;
-            const isCritical = patient?.diagnosis.toLowerCase().includes('crítico');
-
-            return (
-              <div 
-                key={bed.id}
-                onClick={() => setSelectedBed(bed)}
-                className={`group cursor-pointer relative bg-white rounded-2xl border border-slate-200 p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 
-                  ${isOccupied ? `border-t-4 ${styles?.border}` : 'border-dashed opacity-70 grayscale-[0.5]'}`}
-              >
-                {/* Cabecera Tarjeta: Cama y Estado */}
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <BedDouble className={`w-4 h-4 ${isOccupied ? 'text-slate-800' : 'text-slate-300'}`} />
-                    <span className="font-black text-slate-900 text-sm">{bed.room}-{bed.letter}</span>
-                  </div>
-                  {isOccupied && (
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded text-white tracking-widest ${styles?.badge}`}>
-                      {styles?.text}
-                    </span>
-                  )}
-                </div>
-
-                {/* Info Paciente */}
-                {isOccupied ? (
-                  <div className="space-y-3">
-                    <div className="min-h-[40px]">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{getPatientEmoji(patient.dob)}</span>
-                        <p className="font-bold text-slate-900 text-sm leading-tight truncate">
-                          {patient.name}
-                        </p>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5 ml-8">
-                        {new Date().getFullYear() - new Date(patient.dob).getFullYear()} años
-                      </p>
-                    </div>
-                    
-                    {/* INDICADORES VISUALES (REQUERIDO) */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-slate-50">
-                      <div className="flex items-center gap-1" title="Dieta controlada">
-                        <span className="text-sm">🍎</span>
-                        <span className="text-[9px] font-bold text-slate-400">DIETA</span>
-                      </div>
-                      
-                      {patient.allergies.length > 0 && (
-                        <div className="flex items-center gap-1" title="Alergias">
-                          <span className="text-sm">🚫</span>
-                          <span className="text-[9px] font-bold text-red-500">ALERGIA</span>
-                        </div>
-                      )}
-
-                      {isCritical && (
-                        <div className="ml-auto animate-bounce">
-                           <span className="text-sm">⚠️</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-6 flex flex-col items-center justify-center opacity-40">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Cama Libre</span>
-                  </div>
-                )}
+          filteredRooms.map((roomGroup) => (
+            <div key={roomGroup.room} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Habitación {roomGroup.room}</span>
               </div>
-            );
-          })
+              <div className="p-3 space-y-2">
+                {roomGroup.beds.map((bed) => {
+                  const patient = bed.patient;
+                  const isOccupied = !!patient;
+                  const styles = isOccupied ? getStatusStyles(patient.diagnosis) : null;
+                  const isCritical = patient?.diagnosis.toLowerCase().includes('crítico');
+
+                  return (
+                    <div 
+                      key={bed.id}
+                      onClick={() => setSelectedBed(bed)}
+                      className={`group cursor-pointer relative rounded-xl border p-3 transition-all hover:shadow-sm
+                        ${isOccupied 
+                          ? `border-l-4 ${styles?.border} bg-white hover:bg-slate-50` 
+                          : 'border-dashed border-slate-300 bg-slate-50/50 hover:bg-slate-100/80'
+                        }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-1.5">
+                          <BedDouble className={`w-3.5 h-3.5 ${isOccupied ? 'text-slate-700' : 'text-slate-300'}`} />
+                          <span className="font-bold text-slate-800 text-xs">{bed.letter}</span>
+                        </div>
+                        {isOccupied && (
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded text-white tracking-widest ${styles?.badge}`}>
+                            {styles?.text}
+                          </span>
+                        )}
+                      </div>
+
+                      {isOccupied ? (
+                        <div className="mt-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">{getPatientEmoji(patient.dob)}</span>
+                            <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
+                              {patient.name}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
+                            {patient.allergies.length > 0 && (
+                              <span className="text-[8px] font-bold text-red-500">🚫 ALERGIA</span>
+                            )}
+                            {isCritical && (
+                              <span className="text-[8px] animate-bounce">⚠️</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-2 flex items-center justify-center">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Libre</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* ── DRAWER LATERAL (PANEL DETALLE) ── */}
       {selectedBed && (
         <>
           <div 
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setSelectedBed(null)}
+            onClick={() => { setSelectedBed(null); setShowAdmitForm(false); setShowRelocateModal(false); }}
           />
           
           <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right-full duration-300">
-            {/* Header del Drawer */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Detalles de Unidad</h2>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Habitación {selectedBed.room}-{selectedBed.letter}</p>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Habitación {selectedBed.room} - Cama {selectedBed.letter}</p>
               </div>
               <button 
-                onClick={() => setSelectedBed(null)}
+                onClick={() => { setSelectedBed(null); setShowAdmitForm(false); setShowRelocateModal(false); }}
                 className="p-2 hover:bg-slate-200 rounded-full transition-colors"
               >
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
 
-            {/* Contenido del Drawer */}
             <div className="flex-1 overflow-y-auto p-8">
               {selectedBed.patient ? (
                 <div className="space-y-8">
-                  {/* Ficha Principal */}
                   <div className="flex items-center gap-5 p-4 bg-slate-900 rounded-3xl shadow-xl shadow-slate-200">
                     <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-4xl">
                        {getPatientEmoji(selectedBed.patient.dob)}
@@ -232,7 +258,6 @@ export default function BedMapPage() {
                     </div>
                   </div>
 
-                  {/* Diagnóstico */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <Activity className="w-3 h-3" /> Juicio Clínico
@@ -242,7 +267,6 @@ export default function BedMapPage() {
                     </div>
                   </div>
 
-                  {/* Alertas Detalladas */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl">
                        <div className="flex items-center gap-2 mb-2">
@@ -265,15 +289,22 @@ export default function BedMapPage() {
                     </div>
                   </div>
 
-                  {/* Acciones */}
                   <div className="pt-6 border-t border-slate-100 space-y-3">
                     {user?.role === 'DOCTOR' && (
-                    <button
-                      onClick={() => dischargeMutation.mutate(selectedBed.patient!.id)}
-                      className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
-                    >
-                      <LogOut className="w-4 h-4" /> Tramitar Alta Médica
-                    </button>
+                      <button
+                        onClick={() => dischargeMutation.mutate(selectedBed.patient!.id)}
+                        className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
+                      >
+                        <LogOut className="w-4 h-4" /> Tramitar Alta Médica
+                      </button>
+                    )}
+                    {(user?.role === 'DOCTOR' || user?.role === 'NURSE') && (
+                      <button
+                        onClick={() => setShowRelocateModal(true)}
+                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+                      >
+                        <ArrowRightLeft className="w-4 h-4" /> Reubicar Paciente
+                      </button>
                     )}
                     <button className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm">
                       Ver Historial Completo
@@ -386,6 +417,96 @@ export default function BedMapPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {showRelocateModal && selectedBed?.patient && (
+        <>
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] transition-opacity"
+            onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
+          />
+          
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Reubicar Paciente</h3>
+                  <p className="text-xs text-slate-500 mt-1">{selectedBed.patient.name} → Hab. {selectedBed.room} Cama {selectedBed.letter}</p>
+                </div>
+                <button 
+                  onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selecciona cama destino</p>
+                
+                {freeBeds.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-slate-500 font-medium">No hay camas libres disponibles</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {freeBeds.map(bed => {
+                      const isSelected = relocateTarget === bed.id;
+                      return (
+                        <button
+                          key={bed.id}
+                          onClick={() => setRelocateTarget(bed.id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left
+                            ${isSelected 
+                              ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
+                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            <BedDouble className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800">Hab. {bed.room} - Cama {bed.letter}</p>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {relocateError && (
+                  <p className="text-xs text-red-600 font-medium mt-4">{relocateError}</p>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex gap-3">
+                <button
+                  onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (!relocateTarget) return;
+                    relocateMutation.mutate({ sourceBedId: selectedBed.id, targetBedId: relocateTarget });
+                  }}
+                  disabled={!relocateTarget || relocateMutation.isPending}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {relocateMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <ArrowRightLeft className="w-4 h-4" /> Confirmar
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </>

@@ -61,12 +61,18 @@ async function main() {
   console.log('Creating beds...');
 
   const bedConfigs = [
-    { room: 101, letter: 'A' },
-    { room: 101, letter: 'B' },
-    { room: 102, letter: 'A' },
-    { room: 102, letter: 'B' },
-    { room: 103, letter: 'A' },
-    { room: 103, letter: 'B' },
+    { room: 101, letter: 'A' }, { room: 101, letter: 'B' },
+    { room: 102, letter: 'A' }, { room: 102, letter: 'B' },
+    { room: 103, letter: 'A' }, { room: 103, letter: 'B' },
+    { room: 104, letter: 'A' }, { room: 104, letter: 'B' },
+    { room: 105, letter: 'A' }, { room: 105, letter: 'B' },
+    { room: 106, letter: 'A' }, { room: 106, letter: 'B' },
+    { room: 107, letter: 'A' }, { room: 107, letter: 'B' },
+    { room: 108, letter: 'A' }, { room: 108, letter: 'B' },
+    { room: 109, letter: 'A' }, { room: 109, letter: 'B' },
+    { room: 110, letter: 'A' }, { room: 110, letter: 'B' },
+    { room: 111, letter: 'A' }, { room: 111, letter: 'B' },
+    { room: 112, letter: 'A' }, { room: 112, letter: 'B' },
   ];
 
   const beds = [];
