@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { 
   BedDouble, 
   Search, 
@@ -43,6 +44,7 @@ interface RoomGroup {
 
 export default function BedMapPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,10 +63,8 @@ export default function BedMapPage() {
   const roomsGrouped: RoomGroup[] = useMemo(() => {
     const map = new Map<number, Bed[]>();
     for (const bed of beds) {
-      if (bed.patient) {
-        if (!map.has(bed.room)) map.set(bed.room, []);
-        map.get(bed.room)!.push(bed);
-      }
+      if (!map.has(bed.room)) map.set(bed.room, []);
+      map.get(bed.room)!.push(bed);
     }
     return Array.from(map.entries())
       .sort(([a], [b]) => a - b)
@@ -127,6 +127,10 @@ export default function BedMapPage() {
 
   const occupiedCount = beds.filter(b => b.patient).length;
 
+  const canDischarge = user?.role === 'DOCTOR';
+  const canRelocate = user?.role === 'DOCTOR' || user?.role === 'NURSE';
+  const canAdmit = user?.role === 'DOCTOR';
+
   return (
     <div className="relative min-h-screen bg-[#f9fafb] p-4 md:p-8 overflow-hidden font-sans">
       
@@ -138,7 +142,7 @@ export default function BedMapPage() {
                <span className="text-slate-400 text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Turno Mañana</span>
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mapa de Camas</h1>
-            <p className="text-slate-500 text-sm font-medium">{occupiedCount} camas ocupadas</p>
+            <p className="text-slate-500 text-sm font-medium">{occupiedCount}/24 camas ocupadas</p>
           </div>
 
           <div className="relative w-full md:w-80">
@@ -160,7 +164,7 @@ export default function BedMapPage() {
         ) : filteredRooms.length === 0 ? (
           <div className="col-span-full py-20 text-center">
             <BedDouble className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-400 font-bold">No hay camas ocupadas</p>
+            <p className="text-slate-400 font-bold">No se encontraron camas</p>
           </div>
         ) : (
           filteredRooms.map((roomGroup) => (
@@ -296,7 +300,7 @@ export default function BedMapPage() {
                   </div>
 
                   <div className="pt-6 border-t border-slate-100 space-y-3">
-                    {user?.role === 'DOCTOR' && (
+                    {canDischarge && (
                       <button
                         onClick={() => dischargeMutation.mutate(selectedBed.patient!.id)}
                         className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
@@ -304,7 +308,7 @@ export default function BedMapPage() {
                         <LogOut className="w-4 h-4" /> Tramitar Alta Médica
                       </button>
                     )}
-                    {(user?.role === 'DOCTOR' || user?.role === 'NURSE') && (
+                    {canRelocate && (
                       <button
                         onClick={() => setShowRelocateModal(true)}
                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
@@ -312,7 +316,13 @@ export default function BedMapPage() {
                         <ArrowRightLeft className="w-4 h-4" /> Reubicar Paciente
                       </button>
                     )}
-                    <button className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm">
+                    <button
+                      onClick={() => {
+                        setSelectedBed(null);
+                        navigate(`/history`);
+                      }}
+                      className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
+                    >
                       Ver Historial Completo
                     </button>
                   </div>
@@ -327,7 +337,7 @@ export default function BedMapPage() {
                     <p className="text-xs text-slate-400 mt-2">Esta cama está lista para recibir un nuevo ingreso.</p>
                   </div>
 
-                  {user?.role === 'DOCTOR' && !showAdmitForm && (
+                  {canAdmit && !showAdmitForm && (
                     <button
                       onClick={() => setShowAdmitForm(true)}
                       className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all"
@@ -336,7 +346,7 @@ export default function BedMapPage() {
                     </button>
                   )}
 
-                  {user?.role === 'DOCTOR' && showAdmitForm && (
+                  {canAdmit && showAdmitForm && (
                     <div className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Datos del paciente</p>
 

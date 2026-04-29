@@ -71,7 +71,7 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Pacientes en planta"
           value={patients.length}
@@ -95,13 +95,6 @@ export function DashboardOverview() {
             loading={loadingNotifs}
           />
         )}
-        <StatCard
-          label="Camas libres"
-          value={beds.length - occupiedBeds}
-          icon={BedDouble}
-          colorClass="bg-chart-4"
-          loading={loadingBeds}
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
