@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, LogOut, UserPlus, X, Check } from 'lucide-react';
+import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, Medication, CareRecord, VitalSigns } from '@/lib/types';
@@ -45,16 +45,7 @@ export default function PatientsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
-      navigate('/patients');
-    },
-  });
-
   const isDoctor = user?.role === 'DOCTOR';
-  const isAdmin = user?.role === 'ADMIN';
 
   // Formulario de medicación
   const [showMedForm, setShowMedForm] = useState(false);
@@ -177,20 +168,6 @@ export default function PatientsPage() {
               <Calendar className="w-4 h-4" />
               Ingreso: {new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES')}
             </span>
-            {isAdmin && !selectedPatient.discharged && (
-              <button
-                onClick={() => {
-                  if (window.confirm('¿Confirmas que deseas dar de alta a este paciente? Esta acción liberará su cama y ocultará al paciente de la lista.')) {
-                    dischargeMutation.mutate(selectedPatient.id);
-                  }
-                }}
-                disabled={dischargeMutation.isPending}
-                className="inline-flex items-center gap-1.5 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
-              >
-                <LogOut className="w-4 h-4" />
-                {dischargeMutation.isPending ? 'Procesando...' : 'Dar de alta'}
-              </button>
-            )}
           </div>
         </div>
 
