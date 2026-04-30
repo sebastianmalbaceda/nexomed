@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   BedDouble, Search, X, Activity, Loader2, UserPlus, Clock,
-  ArrowRightLeft, Check, Pill, UserCheck, ExternalLink,
+  ArrowRightLeft, Check, Pill, UserCheck, ExternalLink, LogOut,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -43,6 +43,8 @@ export default function BedMapPage() {
   const [showAdmitForm, setShowAdmitForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [admitError, setAdmitError] = useState('');
+  const [dniSearch, setDniSearch] = useState('');
+  const [dniFound, setDniFound] = useState<Patient | null>(null);
   const [showRelocateModal, setShowRelocateModal] = useState(false);
   const [relocateTarget, setRelocateTarget] = useState<string | null>(null);
   const [relocateError, setRelocateError] = useState('');
@@ -111,8 +113,39 @@ export default function BedMapPage() {
       setShowAdmitForm(false);
       setForm(EMPTY_FORM);
       setAdmitError('');
+      setDniSearch('');
+      setDniFound(null);
     },
     onError: (e: Error) => setAdmitError(e.message),
+  });
+
+  const searchDniMutation = useMutation({
+    mutationFn: (dni: string) => api.get<Patient>(`/patients/search?dni=${encodeURIComponent(dni)}`),
+    onSuccess: (patient) => {
+      setDniFound(patient);
+      setForm(f => ({
+        ...f,
+        dni: patient.dni ?? '',
+        name: patient.name,
+        surnames: patient.surnames ?? '',
+        dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
+        diagnosis: '',
+        allergies: patient.allergies.join(', '),
+      }));
+    },
+    onError: () => {
+      setDniFound(null);
+      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', allergies: '', gender: '' }));
+    },
+  });
+
+  const dischargeMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['beds'] });
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      setSelectedBed(null);
+    },
   });
 
   const relocateMutation = useMutation({
@@ -184,6 +217,8 @@ export default function BedMapPage() {
     setSelectedBed(null);
     setShowAdmitForm(false);
     setShowRelocateModal(false);
+    setDniSearch('');
+    setDniFound(null);
   };
 
   return (
@@ -452,6 +487,21 @@ export default function BedMapPage() {
                       </button>
                     )}
 
+                    {/* Discharge — doctor only */}
+                    {isDoctor && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Dar de alta a ${selectedBed.patient!.name} ${selectedBed.patient!.surnames}? Se liberará la cama.`)) {
+                            dischargeMutation.mutate(selectedBed.patient!.id);
+                          }
+                        }}
+                        disabled={dischargeMutation.isPending}
+                        className="w-full py-3.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <LogOut className="w-4 h-4" /> Dar de Alta al Paciente
+                      </button>
+                    )}
+
                   </div>
                 </div>
               ) : (
@@ -478,22 +528,70 @@ export default function BedMapPage() {
                     <div className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-4">Datos del paciente</p>
 
-                      {[
-                        { label: 'DNI * (9 dígitos)', key: 'dni', placeholder: '123456789' },
-                        { label: 'Nombre *', key: 'name', placeholder: 'Nombre' },
-                        { label: 'Apellidos *', key: 'surnames', placeholder: 'Apellidos' },
-                      ].map(({ label, key, placeholder }) => (
-                        <div key={key}>
-                          <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+                      {/* DNI Search */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Buscar por DNI</label>
+                        <div className="flex gap-2">
                           <input
                             type="text"
-                            placeholder={placeholder}
-                            value={form[key as keyof typeof form]}
-                            onChange={(e) => setForm(f => ({ ...f, [key]: e.target.value }))}
-                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
+                            placeholder="123456789"
+                            value={dniSearch}
+                            onChange={(e) => setDniSearch(e.target.value)}
+                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
                           />
+                          <button
+                            onClick={() => searchDniMutation.mutate(dniSearch)}
+                            disabled={!dniSearch || searchDniMutation.isPending}
+                            className="px-4 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {searchDniMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                            Buscar
+                          </button>
                         </div>
-                      ))}
+                      </div>
+
+                      {searchDniMutation.isError && (
+                        <p className="text-xs text-slate-400">Paciente no encontrado. Puedes registrar uno nuevo con este DNI.</p>
+                      )}
+                      {dniFound && (
+                        <p className="text-xs text-emerald-600 font-medium">✓ Paciente encontrado. Datos auto-rellenados.</p>
+                      )}
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">DNI * (9 dígitos)</label>
+                        <input
+                          type="text"
+                          placeholder="123456789"
+                          value={form.dni}
+                          onChange={(e) => setForm(f => ({ ...f, dni: e.target.value }))}
+                          readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Nombre *</label>
+                        <input
+                          type="text"
+                          placeholder="Nombre"
+                          value={form.name}
+                          onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+                          readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Apellidos *</label>
+                        <input
+                          type="text"
+                          placeholder="Apellidos"
+                          value={form.surnames}
+                          onChange={(e) => setForm(f => ({ ...f, surnames: e.target.value }))}
+                          readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
+                        />
+                      </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de nacimiento *</label>

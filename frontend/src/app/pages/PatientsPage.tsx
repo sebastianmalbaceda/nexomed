@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check } from 'lucide-react';
+import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, Medication, CareRecord, VitalSigns } from '@/lib/types';
@@ -69,6 +69,14 @@ export default function PatientsPage() {
       queryClient.invalidateQueries({ queryKey: ['medications', selectedPatient!.id] });
       setShowMedForm(false);
       setMedForm({ drugName: '', nregistro: '', dose: '', route: '', frequencyHrs: 8, startTime: new Date().toISOString().slice(0, 16) });
+    },
+  });
+
+  const dischargeMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      navigate('/patients');
     },
   });
 
@@ -168,6 +176,16 @@ export default function PatientsPage() {
               <Calendar className="w-4 h-4" />
               Ingreso: {new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES')}
             </span>
+            {isDoctor && (
+              <button
+                onClick={() => { if (window.confirm(`¿Dar de alta a ${selectedPatient.name} ${selectedPatient.surnames}?`)) dischargeMutation.mutate(selectedPatient.id); }}
+                disabled={dischargeMutation.isPending}
+                className="inline-flex items-center gap-1.5 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-full hover:bg-destructive/20 transition-colors disabled:opacity-50"
+              >
+                <LogOut className="w-4 h-4" />
+                Dar de alta
+              </button>
+            )}
           </div>
         </div>
 
