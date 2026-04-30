@@ -10,6 +10,13 @@ import { useAuthStore } from '@/store/authStore';
 import { POLLING_INTERVAL_MS, NOTIFICATION_TYPE_LABELS } from '@/lib/constants';
 import type { Patient, Medication, CareRecord, Notification, MedSchedule, Incident } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CARE_TYPES = [
@@ -394,6 +401,7 @@ export default function NursePage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
                             <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
+                            {(() => { const sc = statusConfig[p.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
                             {isAssigned && <span className="text-[9px] bg-emerald-500 text-white font-black px-1 rounded shrink-0">MÍO</span>}
                           </div>
                           <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
@@ -449,7 +457,10 @@ export default function NursePage() {
                     {new Date().getFullYear() - new Date(selected.dob).getFullYear() >= 65 ? '👴' : '🧑'}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-black text-white text-base">{selected.name} {selected.surnames}</h2>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="font-black text-white text-base">{selected.name} {selected.surnames}</h2>
+                      {(() => { const sc = statusConfig[selected.status] ?? statusConfig.ESTABLE; return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+                    </div>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · Ingreso: {new Date(selected.admissionDate).toLocaleDateString('es-ES')}
                     </p>

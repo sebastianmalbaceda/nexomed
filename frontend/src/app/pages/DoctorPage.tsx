@@ -9,6 +9,13 @@ import type { Patient, Medication } from '@/lib/types';
 
 const FREQ_OPTIONS = [2, 4, 6, 8, 12, 24];
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 export default function DoctorPage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -125,7 +132,10 @@ export default function DoctorPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
+                            {(() => { const sc = statusConfig[p.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+                          </div>
                           <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
                         </div>
                         {hasAllergy && (
@@ -155,7 +165,10 @@ export default function DoctorPage() {
                     {new Date().getFullYear() - new Date(selected.dob).getFullYear() >= 65 ? '👴' : '🧑'}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-black text-white text-base">{selected.name} {selected.surnames}</h2>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="font-black text-white text-base">{selected.name} {selected.surnames}</h2>
+                      {(() => { const sc = statusConfig[selected.status] ?? statusConfig.ESTABLE; return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+                    </div>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {selected.dni && <span className="mr-2">DNI: {selected.dni}</span>}
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · Ingreso: {new Date(selected.admissionDate).toLocaleDateString('es-ES')}

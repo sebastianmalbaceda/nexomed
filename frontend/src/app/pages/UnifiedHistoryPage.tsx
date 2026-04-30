@@ -7,6 +7,13 @@ import { CARE_RECORD_TYPE_LABELS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, CareRecord, Medication, MedSchedule, DiagnosticTest } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 const TYPE_BADGE: Record<string, string> = {
   constante: 'bg-blue-100 text-blue-700 border-blue-200',
   cura:      'bg-orange-100 text-orange-700 border-orange-200',
@@ -90,7 +97,10 @@ export default function UnifiedHistoryPage() {
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-56"
           >
             <option value="">— Seleccionar paciente —</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
+            {patients.map((p) => {
+              const sc = statusConfig[p.status] ?? statusConfig.ESTABLE;
+              return <option key={p.id} value={p.id}>{p.name} {p.surnames} — {sc.label}</option>;
+            })}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
@@ -121,7 +131,10 @@ export default function UnifiedHistoryPage() {
               {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-white">{selectedPatient.name} {selectedPatient.surnames}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-black text-white">{selectedPatient.name} {selectedPatient.surnames}</p>
+                {(() => { const sc = statusConfig[selectedPatient.status] ?? statusConfig.ESTABLE; return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+              </div>
               <p className="text-xs text-slate-400">Historial clínico completo</p>
             </div>
             <FileText className="w-5 h-5 text-slate-400 shrink-0" />

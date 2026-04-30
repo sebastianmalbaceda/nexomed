@@ -7,6 +7,13 @@ import {
 import { api } from '@/lib/api';
 import type { Patient, Incident } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 const INCIDENT_TYPES = [
   { value: 'MED_REFUSAL',     label: 'Rechazo de medicación', icon: <Pill className="w-3 h-3" /> },
   { value: 'CARE_INCIDENT',   label: 'Incidente de cuidados', icon: <ClipboardList className="w-3 h-3" /> },
@@ -208,7 +215,10 @@ export default function IncidentsPage() {
             {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-sm">{selectedPatient.name} {selectedPatient.surnames}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-black text-white text-sm">{selectedPatient.name} {selectedPatient.surnames}</p>
+              {(() => { const sc = statusConfig[selectedPatient.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+            </div>
             <p className="text-slate-400 text-xs">{selectedPatient.diagnosis}</p>
           </div>
           {selectedPatient.allergies.length > 0 && (

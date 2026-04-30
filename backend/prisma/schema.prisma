@@ -38,6 +38,7 @@ model Patient {
   dischargeDate        DateTime?
   discharged           Boolean          @default(false)
   surnames             String?
+  status               PatientStatus    @default(ESTABLE)
   assignedNurseId      String?
   careRecords          CareRecord[]
   diagnosticTests      DiagnosticTest[]
@@ -133,6 +134,13 @@ model DiagnosticTest {
   status        String   @default("PENDING")
   patient       Patient  @relation(fields: [patientId], references: [id])
   requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id])
+}
+
+enum PatientStatus {
+  ESTABLE
+  MODERADO
+  CRITICO
+  OBSERVACION
 }
 
 enum Role {

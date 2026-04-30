@@ -17,16 +17,17 @@ const getPatientEmoji = (dobString: string) => {
   return '👶';
 };
 
-const getStatusStyles = (diagnosis = '') => {
-  const d = diagnosis.toLowerCase();
-  const isCritical = ['crítico', 'critico', 'infarto', 'iam', 'urgente', 'sepsis', 'shock', 'pcr'].some(k => d.includes(k));
-  const isModerate = ['moderado', 'observación', 'observacion', 'epoc', 'reagudizado', 'postoperatorio', 'cetoacidosis'].some(k => d.includes(k));
-  if (isCritical) return { border: 'border-l-red-500', badge: 'bg-red-500', text: 'CRÍTICO', bg: 'bg-red-50/30' };
-  if (isModerate) return { border: 'border-l-orange-400', badge: 'bg-orange-400', text: 'MODERADO', bg: 'bg-orange-50/30' };
-  return { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
+const getStatusStyles = (status: string) => {
+  const statusMap: Record<string, { border: string; badge: string; text: string; bg: string }> = {
+    CRITICO: { border: 'border-l-red-500', badge: 'bg-red-500', text: 'CRÍTICO', bg: 'bg-red-50/30' },
+    MODERADO: { border: 'border-l-orange-400', badge: 'bg-orange-400', text: 'MODERADO', bg: 'bg-orange-50/30' },
+    OBSERVACION: { border: 'border-l-amber-400', badge: 'bg-amber-400', text: 'OBSERVACIÓN', bg: 'bg-amber-50/30' },
+    ESTABLE: { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' },
+  };
+  return statusMap[status] ?? { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
 };
 
-const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', allergies: '', gender: '' };
+const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: '', gender: '' };
 
 interface RoomGroup { room: number; beds: Bed[] }
 
@@ -102,6 +103,7 @@ export default function BedMapPage() {
         surnames: form.surnames.trim(),
         dob: new Date(form.dob).toISOString(),
         diagnosis: form.diagnosis.trim(),
+        status: form.status,
         allergies: allergiesArr,
         bedId,
       });
@@ -130,12 +132,13 @@ export default function BedMapPage() {
         surnames: patient.surnames ?? '',
         dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         diagnosis: '',
+        status: patient.status ?? 'ESTABLE',
         allergies: patient.allergies.join(', '),
       }));
     },
     onError: () => {
       setDniFound(null);
-      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', allergies: '', gender: '' }));
+      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: '', gender: '' }));
     },
   });
 
@@ -315,8 +318,8 @@ export default function BedMapPage() {
                 {roomGroup.beds.map((bed) => {
                   const patient = bed.patient;
                   const isOccupied = !!patient;
-                  const styles = isOccupied ? getStatusStyles(patient.diagnosis) : null;
-                  const isCritical = patient?.diagnosis.toLowerCase().includes('crítico');
+                  const styles = isOccupied ? getStatusStyles(patient.status) : null;
+                  const isCritical = patient?.status === 'CRITICO';
                   const isMyPatient = patient?.assignedNurseId === user?.id;
 
                   return (
@@ -350,9 +353,15 @@ export default function BedMapPage() {
                         <div className="mt-2">
                           <div className="flex items-center gap-1.5">
                             <span className="text-base">{getPatientEmoji(patient.dob)}</span>
-                            <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
-                              {patient.name} {patient.surnames}
-                            </p>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
+                                {patient.name} {patient.surnames}
+                              </p>
+                              {(() => {
+                                const dotColors: Record<string, string> = { ESTABLE: 'bg-emerald-500', OBSERVACION: 'bg-amber-500', MODERADO: 'bg-orange-500', CRITICO: 'bg-red-500' };
+                                return <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColors[patient.status] ?? 'bg-emerald-500'}`} />;
+                              })()}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
                             {patient.allergies.length > 0 && (
@@ -615,6 +624,17 @@ export default function BedMapPage() {
                         <input type="text" placeholder="Diagnóstico principal" value={form.diagnosis}
                           onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Estado clínico *</label>
+                        <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300">
+                          <option value="ESTABLE">Estable</option>
+                          <option value="OBSERVACION">En observación</option>
+                          <option value="MODERADO">Moderado</option>
+                          <option value="CRITICO">Crítico</option>
+                        </select>
                       </div>
 
                       <div>

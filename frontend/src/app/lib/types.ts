@@ -10,6 +10,8 @@ export interface User {
   createdAt: string;
 }
 
+export type PatientStatus = 'ESTABLE' | 'MODERADO' | 'CRITICO' | 'OBSERVACION';
+
 export interface Patient {
   id: string;
   dni: string | null;
@@ -18,6 +20,7 @@ export interface Patient {
   /** ISO date string */
   dob: string;
   diagnosis: string;
+  status: PatientStatus;
   allergies: string[];
   dietRestriction: string | null;
   isolationRestriction: string | null;
