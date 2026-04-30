@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "set NODE_NO_WARNINGS=1 && nodemon --quiet src/index.ts",
+    "dev": "nodemon src/index.ts",
     "build": "tsc",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
