@@ -1,52 +1,43 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  BedDouble, 
-  Search, 
-  X, 
-  Activity, 
-  Loader2, 
-  LogOut, 
-  UserPlus, 
-  Clock,
-  ArrowRightLeft,
-  Check,
-  Pill
+import {
+  BedDouble, Search, X, Activity, Loader2, LogOut, UserPlus, Clock,
+  ArrowRightLeft, Check, Pill, UserCheck, ExternalLink,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Bed, Patient } from '@/lib/types';
 
 const getPatientEmoji = (dobString: string) => {
-  const birthDate = new Date(dobString);
-  const age = new Date().getFullYear() - birthDate.getFullYear();
-  if (age >= 75) return "👵"; 
-  if (age >= 65) return "👴"; 
-  if (age >= 18) return "🧑"; 
-  return "👶";
+  const age = new Date().getFullYear() - new Date(dobString).getFullYear();
+  if (age >= 75) return '👵';
+  if (age >= 65) return '👴';
+  if (age >= 18) return '🧑';
+  return '👶';
 };
 
-const getStatusStyles = (diagnosis: string = "") => {
+const getStatusStyles = (diagnosis = '') => {
   const d = diagnosis.toLowerCase();
-  const isCritical = ['crítico', 'critico', 'infarto', 'iam', 'urgente', 'sepsis', 'shock', 'pcr', 'reanimación'].some(k => d.includes(k));
+  const isCritical = ['crítico', 'critico', 'infarto', 'iam', 'urgente', 'sepsis', 'shock', 'pcr'].some(k => d.includes(k));
   const isModerate = ['moderado', 'observación', 'observacion', 'epoc', 'reagudizado', 'postoperatorio', 'cetoacidosis'].some(k => d.includes(k));
-  if (isCritical) return { border: 'border-t-red-500', badge: 'bg-red-500', text: 'CRÍTICO', bg: 'bg-red-50/30' };
-  if (isModerate) return { border: 'border-t-orange-400', badge: 'bg-orange-400', text: 'MODERADO', bg: 'bg-orange-50/30' };
-  return { border: 'border-t-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
+  if (isCritical) return { border: 'border-l-red-500', badge: 'bg-red-500', text: 'CRÍTICO', bg: 'bg-red-50/30' };
+  if (isModerate) return { border: 'border-l-orange-400', badge: 'bg-orange-400', text: 'MODERADO', bg: 'bg-orange-50/30' };
+  return { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
 };
 
-  const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', allergies: '', gender: '' };
+const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', allergies: '', gender: '' };
 
-interface RoomGroup {
-  room: number;
-  beds: Bed[];
-}
+interface RoomGroup { room: number; beds: Bed[] }
+
+type Tab = 'general' | 'my-patients';
 
 export default function BedMapPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<Tab>('general');
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdmitForm, setShowAdmitForm] = useState(false);
@@ -69,18 +60,33 @@ export default function BedMapPage() {
     }
     return Array.from(map.entries())
       .sort(([a], [b]) => a - b)
-      .map(([room, beds]) => ({ room, beds }));
+      .map(([room, bedList]) => ({ room, beds: bedList }));
   }, [beds]);
 
-  const freeBeds = useMemo(() => 
-    beds.filter(b => !b.patient),
-  [beds]);
+  const myPatientBeds = useMemo(() =>
+    beds.filter(b => b.patient?.assignedNurseId === user?.id),
+  [beds, user]);
 
-  const filteredRooms = roomsGrouped.filter(room =>
+  const myPatientRooms: RoomGroup[] = useMemo(() => {
+    const map = new Map<number, Bed[]>();
+    for (const bed of myPatientBeds) {
+      if (!map.has(bed.room)) map.set(bed.room, []);
+      map.get(bed.room)!.push(bed);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([room, bedList]) => ({ room, beds: bedList }));
+  }, [myPatientBeds]);
+
+  const freeBeds = useMemo(() => beds.filter(b => !b.patient), [beds]);
+
+  const sourceRooms = activeTab === 'general' ? roomsGrouped : myPatientRooms;
+
+  const filteredRooms = sourceRooms.filter(room =>
     room.room.toString().includes(searchTerm) ||
     room.beds.some(b =>
       b.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.patient?.surnames.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.patient?.surnames ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.patient?.dni?.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
@@ -91,7 +97,7 @@ export default function BedMapPage() {
       qc.invalidateQueries({ queryKey: ['beds'] });
       qc.invalidateQueries({ queryKey: ['patients'] });
       setSelectedBed(null);
-    }
+    },
   });
 
   const admitMutation = useMutation({
@@ -119,9 +125,8 @@ export default function BedMapPage() {
   });
 
   const relocateMutation = useMutation({
-    mutationFn: async ({ sourceBedId, targetBedId }: { sourceBedId: string; targetBedId: string }) => {
-      return api.put<Bed>(`/beds/${sourceBedId}/relocate`, { targetBedId });
-    },
+    mutationFn: ({ sourceBedId, targetBedId }: { sourceBedId: string; targetBedId: string }) =>
+      api.put<Bed>(`/beds/${sourceBedId}/relocate`, { targetBedId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['beds'] });
       setShowRelocateModal(false);
@@ -132,52 +137,155 @@ export default function BedMapPage() {
     onError: (e: Error) => setRelocateError(e.message),
   });
 
-  const occupiedCount = beds.filter(b => b.patient).length;
+  // Nurse self-assignment — optimistic: updates local cache; backend endpoint pending
+  const assignNurseMutation = useMutation({
+    mutationFn: (patientId: string) =>
+      api.put(`/patients/${patientId}`, { assignedNurseId: user?.id }),
+    onMutate: async (patientId: string) => {
+      qc.setQueryData(['beds'], (old: Bed[] | undefined) =>
+        old?.map(b =>
+          b.patient?.id === patientId
+            ? { ...b, patient: { ...b.patient!, assignedNurseId: user?.id ?? null } }
+            : b
+        )
+      );
+      if (selectedBed?.patient?.id === patientId) {
+        setSelectedBed(prev =>
+          prev?.patient ? { ...prev, patient: { ...prev.patient, assignedNurseId: user?.id ?? null } } : prev
+        );
+      }
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ['beds'] });
+    },
+  });
 
-  const canDischarge = user?.role === 'DOCTOR';
-  const canRelocate = user?.role === 'DOCTOR' || user?.role === 'NURSE';
-  const canAdmit = user?.role === 'DOCTOR';
+  const unassignNurseMutation = useMutation({
+    mutationFn: (patientId: string) =>
+      api.put(`/patients/${patientId}`, { assignedNurseId: null }),
+    onMutate: async (patientId: string) => {
+      qc.setQueryData(['beds'], (old: Bed[] | undefined) =>
+        old?.map(b =>
+          b.patient?.id === patientId
+            ? { ...b, patient: { ...b.patient!, assignedNurseId: null } }
+            : b
+        )
+      );
+      if (selectedBed?.patient?.id === patientId) {
+        setSelectedBed(prev =>
+          prev?.patient ? { ...prev, patient: { ...prev.patient, assignedNurseId: null } } : prev
+        );
+      }
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ['beds'] });
+    },
+  });
+
+  const occupiedCount = beds.filter(b => b.patient).length;
+  const isNurse = user?.role === 'NURSE';
+  const isDoctor = user?.role === 'DOCTOR';
+  const isAdmin = user?.role === 'ADMIN';
+
+  const canDischarge = isAdmin;
+  const canRelocate = isDoctor || isNurse;
+  const canAdmit = isDoctor || isNurse;
+
+  const closePanel = () => {
+    setSelectedBed(null);
+    setShowAdmitForm(false);
+    setShowRelocateModal(false);
+  };
 
   return (
-    <div className="relative min-h-screen bg-[#f9fafb] p-4 md:p-8 overflow-hidden font-sans">
-      
-      <div className="max-w-7xl mx-auto mb-8">
+    <div className="relative min-h-screen bg-[#f9fafb] p-4 md:p-8 font-sans">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-               <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Planta 1</span>
-               <span className="text-slate-400 text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Turno Mañana</span>
+              <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Planta 1</span>
+              <span className="text-slate-400 text-[10px] font-bold flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Turno actual
+              </span>
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mapa de Camas</h1>
             <p className="text-slate-500 text-sm font-medium">{occupiedCount}/24 camas ocupadas</p>
           </div>
-
           <div className="relative w-full md:w-80">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
+            <input
               type="text"
               placeholder="Buscar paciente o habitación..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 ring-blue-500/20 outline-none transition-all text-sm"
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 ring-blue-500/20 outline-none text-sm"
             />
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mt-5 bg-white rounded-2xl border border-slate-200 p-1 w-fit shadow-sm">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'general'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <BedDouble className="w-3.5 h-3.5" /> General
+              <span className={`text-[10px] font-black px-1.5 rounded-full ${activeTab === 'general' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {occupiedCount}
+              </span>
+            </span>
+          </button>
+          {isNurse && (
+            <button
+              onClick={() => setActiveTab('my-patients')}
+              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+                activeTab === 'my-patients'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <UserCheck className="w-3.5 h-3.5" /> Mis Pacientes
+                <span className={`text-[10px] font-black px-1.5 rounded-full ${activeTab === 'my-patients' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                  {myPatientBeds.length}
+                </span>
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Bed grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {isLoading ? (
-          <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
+          <div className="col-span-full py-20 flex justify-center">
+            <Loader2 className="animate-spin text-blue-500" />
+          </div>
         ) : filteredRooms.length === 0 ? (
           <div className="col-span-full py-20 text-center">
             <BedDouble className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-400 font-bold">No se encontraron camas</p>
+            {activeTab === 'my-patients' ? (
+              <>
+                <p className="text-slate-400 font-bold">No tienes pacientes asignados</p>
+                <p className="text-slate-300 text-xs mt-1">Usa el mapa General y asígnate pacientes</p>
+              </>
+            ) : (
+              <p className="text-slate-400 font-bold">No se encontraron camas</p>
+            )}
           </div>
         ) : (
           filteredRooms.map((roomGroup) => (
             <div key={roomGroup.room} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-                <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Habitación {roomGroup.room}</span>
+                <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                  Habitación {roomGroup.room}
+                </span>
               </div>
               <div className="p-3 space-y-2">
                 {roomGroup.beds.map((bed) => {
@@ -185,14 +293,15 @@ export default function BedMapPage() {
                   const isOccupied = !!patient;
                   const styles = isOccupied ? getStatusStyles(patient.diagnosis) : null;
                   const isCritical = patient?.diagnosis.toLowerCase().includes('crítico');
+                  const isMyPatient = patient?.assignedNurseId === user?.id;
 
                   return (
-                    <div 
+                    <div
                       key={bed.id}
                       onClick={() => setSelectedBed(bed)}
                       className={`group cursor-pointer relative rounded-xl border p-3 transition-all hover:shadow-sm
-                        ${isOccupied 
-                          ? `border-l-4 ${styles?.border} bg-white hover:bg-slate-50` 
+                        ${isOccupied
+                          ? `border-l-4 ${styles?.border} bg-white hover:bg-slate-50`
                           : 'border-dashed border-slate-300 bg-slate-50/50 hover:bg-slate-100/80'
                         }`}
                     >
@@ -201,28 +310,31 @@ export default function BedMapPage() {
                           <BedDouble className={`w-3.5 h-3.5 ${isOccupied ? 'text-slate-700' : 'text-slate-300'}`} />
                           <span className="font-bold text-slate-800 text-xs">{bed.letter}</span>
                         </div>
-                        {isOccupied && (
-                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded text-white tracking-widest ${styles?.badge}`}>
-                            {styles?.text}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {isMyPatient && (
+                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-500 text-white">MÍO</span>
+                          )}
+                          {isOccupied && (
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded text-white tracking-widest ${styles?.badge}`}>
+                              {styles?.text}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {isOccupied ? (
                         <div className="mt-2">
                           <div className="flex items-center gap-1.5">
                             <span className="text-base">{getPatientEmoji(patient.dob)}</span>
-<p className="font-semibold text-slate-800 text-xs leading-tight truncate">
-                               {patient.name} {patient.surnames}
-                             </p>
+                            <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
+                              {patient.name} {patient.surnames}
+                            </p>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
                             {patient.allergies.length > 0 && (
                               <span className="text-[8px] font-bold text-red-500">🚫 ALERGIA</span>
                             )}
-                            {isCritical && (
-                              <span className="text-[8px] animate-bounce">⚠️</span>
-                            )}
+                            {isCritical && <span className="text-[8px] animate-bounce">⚠️</span>}
                           </div>
                         </div>
                       ) : (
@@ -239,117 +351,146 @@ export default function BedMapPage() {
         )}
       </div>
 
+      {/* Side panel */}
       {selectedBed && (
         <>
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => { setSelectedBed(null); setShowAdmitForm(false); setShowRelocateModal(false); }}
-          />
-          
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={closePanel} />
           <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right-full duration-300">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Detalles de Unidad</h2>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Habitación {selectedBed.room} - Cama {selectedBed.letter}</p>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                  Habitación {selectedBed.room} — Cama {selectedBed.letter}
+                </p>
               </div>
-              <button 
-                onClick={() => { setSelectedBed(null); setShowAdmitForm(false); setShowRelocateModal(false); }}
-                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
-              >
+              <button onClick={closePanel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8">
               {selectedBed.patient ? (
-                <div className="space-y-8">
+                <div className="space-y-6">
+                  {/* Patient header */}
                   <div className="flex items-center gap-5 p-4 bg-slate-900 rounded-3xl shadow-xl shadow-slate-200">
                     <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-4xl">
-                       {getPatientEmoji(selectedBed.patient.dob)}
+                      {getPatientEmoji(selectedBed.patient.dob)}
                     </div>
                     <div>
-<h3 className="text-lg font-bold text-white leading-tight">
-                         {selectedBed.patient.name} {selectedBed.patient.surnames}
-                       </h3>
-                      <p className="text-blue-300 text-xs font-bold mt-1">NHC: {selectedBed.patient.dni || selectedBed.patient.id.slice(0, 8).toUpperCase()}</p>
+                      <h3 className="text-lg font-bold text-white leading-tight">
+                        {selectedBed.patient.name} {selectedBed.patient.surnames}
+                      </h3>
+                      <p className="text-blue-300 text-xs font-bold mt-1">
+                        NHC: {selectedBed.patient.dni || selectedBed.patient.id.slice(0, 8).toUpperCase()}
+                      </p>
+                      {selectedBed.patient.assignedNurseId && (
+                        <p className="text-emerald-300 text-[10px] font-bold mt-0.5 flex items-center gap-1">
+                          <UserCheck className="w-3 h-3" />
+                          {selectedBed.patient.assignedNurseId === user?.id ? 'Tu paciente' : 'Asignado'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  {/* Diagnosis */}
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <Activity className="w-3 h-3" /> Juicio Clínico
                     </label>
-                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-sm leading-relaxed font-medium">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-sm leading-relaxed font-medium">
                       "{selectedBed.patient.diagnosis}"
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl">
-                       <div className="flex items-center gap-2 mb-2">
-                         <span className="text-lg">🍎</span>
-                         <p className="text-[10px] font-black text-orange-700 uppercase">Alimentación</p>
-                       </div>
-                       <p className="text-xs font-bold text-orange-900">Dieta Blanda / Hiposódica</p>
-                    </div>
-                    
-                    <div className={`p-4 rounded-2xl border ${selectedBed.patient.allergies.length > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                       <div className="flex items-center gap-2 mb-2">
-                         <span className="text-lg">🚫</span>
-                         <p className={`text-[10px] font-black uppercase ${selectedBed.patient.allergies.length > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-                           Alergias
-                         </p>
-                       </div>
-                       <p className={`text-xs font-bold ${selectedBed.patient.allergies.length > 0 ? 'text-red-900' : 'text-emerald-900'}`}>
-                        {selectedBed.patient.allergies.join(', ') || 'Sin alergias conocidas'}
-                       </p>
-                    </div>
+                  {/* Allergies */}
+                  <div className={`p-4 rounded-2xl border ${selectedBed.patient.allergies.length > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <p className={`text-[10px] font-black uppercase mb-1 ${selectedBed.patient.allergies.length > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                      🚫 Alergias
+                    </p>
+                    <p className={`text-xs font-bold ${selectedBed.patient.allergies.length > 0 ? 'text-red-900' : 'text-emerald-900'}`}>
+                      {selectedBed.patient.allergies.join(', ') || 'Sin alergias conocidas'}
+                    </p>
                   </div>
 
-                  <div className="pt-6 border-t border-slate-100 space-y-3">
-                    {canDischarge && (
-                      <button
-                        onClick={() => dischargeMutation.mutate(selectedBed.patient!.id)}
-                        className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
-                      >
-                        <LogOut className="w-4 h-4" /> Tramitar Alta Médica
-                      </button>
+                  {/* Actions */}
+                  <div className="pt-4 border-t border-slate-100 space-y-3">
+                    {/* Ver paciente — todos los roles */}
+                    <button
+                      onClick={() => { closePanel(); navigate(`/patients/${selectedBed.patient!.id}`); }}
+                      className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Ver ficha del paciente
+                    </button>
+
+                    {/* Nurse assignment */}
+                    {isNurse && (
+                      selectedBed.patient.assignedNurseId === user?.id ? (
+                        <button
+                          onClick={() => unassignNurseMutation.mutate(selectedBed.patient!.id)}
+                          disabled={unassignNurseMutation.isPending}
+                          className="w-full py-3.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-2xl transition-all flex items-center justify-center gap-2"
+                        >
+                          <UserCheck className="w-4 h-4" /> Desasignarme
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => assignNurseMutation.mutate(selectedBed.patient!.id)}
+                          disabled={assignNurseMutation.isPending}
+                          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
+                        >
+                          <UserCheck className="w-4 h-4" /> Asignarme este paciente
+                        </button>
+                      )
                     )}
-                    {canRelocate && (
-                      <button
-                        onClick={() => setShowRelocateModal(true)}
-                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
-                      >
-                        <ArrowRightLeft className="w-4 h-4" /> Reubicar Paciente
-                      </button>
-                    )}
-                    {user?.role === 'DOCTOR' && (
+
+                    {/* Prescribe — doctor */}
+                    {isDoctor && (
                       <button
                         onClick={() => navigate(`/patients/${selectedBed.patient!.id}`)}
-                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
+                        className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-100"
                       >
                         <Pill className="w-4 h-4" /> Pautar Medicación
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        setSelectedBed(null);
-                        navigate(`/history?patientId=${selectedBed.patient!.id}`);
-                      }}
-                      className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
-                    >
-                      Ver Historial Completo
-                    </button>
+
+                    {/* Relocate */}
+                    {canRelocate && (
+                      <button
+                        onClick={() => setShowRelocateModal(true)}
+                        className="w-full py-3.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-2xl transition-all flex items-center justify-center gap-2"
+                      >
+                        <ArrowRightLeft className="w-4 h-4" /> Reubicar Paciente
+                      </button>
+                    )}
+
+                    {/* Discharge — ADMIN only */}
+                    {canDischarge && (
+                      <button
+                        onClick={() => {
+                          if (confirm('¿Confirmar alta del paciente?')) {
+                            dischargeMutation.mutate(selectedBed.patient!.id);
+                          }
+                        }}
+                        disabled={dischargeMutation.isPending}
+                        className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
+                      >
+                        {dischargeMutation.isPending
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <LogOut className="w-4 h-4" />}
+                        Tramitar Alta (Administración)
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
+                /* Empty bed */
                 <div className="py-6">
                   <div className="text-center mb-6">
                     <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
                       <BedDouble className="w-8 h-8 text-slate-200" />
                     </div>
                     <h3 className="text-lg font-black text-slate-900">Unidad Vacía</h3>
-                    <p className="text-xs text-slate-400 mt-2">Esta cama está lista para recibir un nuevo ingreso.</p>
+                    <p className="text-xs text-slate-400 mt-2">Esta cama está lista para un nuevo ingreso.</p>
                   </div>
 
                   {canAdmit && !showAdmitForm && (
@@ -364,99 +505,64 @@ export default function BedMapPage() {
                   {canAdmit && showAdmitForm && (
                     <div className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-4">Datos del paciente</p>
-                      
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">DNI * (9 dígitos)</label>
-                        <input
-                          type="text"
-                          placeholder="123456789"
-                          value={form.dni}
-                          onChange={(e) => setForm(f => ({ ...f, dni: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
-                      </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Nombre *</label>
-                        <input
-                          type="text"
-                          placeholder="Nombre"
-                          value={form.name}
-                          onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
-                      </div>
+                      {[
+                        { label: 'DNI * (9 dígitos)', key: 'dni', placeholder: '123456789' },
+                        { label: 'Nombre *', key: 'name', placeholder: 'Nombre' },
+                        { label: 'Apellidos *', key: 'surnames', placeholder: 'Apellidos' },
+                      ].map(({ label, key, placeholder }) => (
+                        <div key={key}>
+                          <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+                          <input
+                            type="text"
+                            placeholder={placeholder}
+                            value={form[key as keyof typeof form]}
+                            onChange={(e) => setForm(f => ({ ...f, [key]: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
+                          />
+                        </div>
+                      ))}
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Apellidos *</label>
-                        <input
-                          type="text"
-                          placeholder="Apellidos"
-                          value={form.surnames}
-                          onChange={(e) => setForm(f => ({ ...f, surnames: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
-                      </div>
-                      
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de nacimiento *</label>
-                        <input
-                          type="date"
-                          value={form.dob}
-                          onChange={(e) => setForm(f => ({ ...f, dob: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
+                        <input type="date" value={form.dob} onChange={(e) => setForm(f => ({ ...f, dob: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
                       </div>
-                      
+
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Género *</label>
-                        <select
-                          value={form.gender}
-                          onChange={(e) => setForm(f => ({ ...f, gender: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        >
+                        <select value={form.gender} onChange={(e) => setForm(f => ({ ...f, gender: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300">
                           <option value="">-- Seleccionar --</option>
                           <option value="Mujer">Mujer</option>
                           <option value="Hombre">Hombre</option>
                           <option value="Otro">Otro</option>
                         </select>
                       </div>
-                      
+
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Diagnóstico *</label>
-                        <input
-                          type="text"
-                          placeholder="Diagnóstico principal"
-                          value={form.diagnosis}
+                        <input type="text" placeholder="Diagnóstico principal" value={form.diagnosis}
                           onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
                       </div>
-                      
+
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Alergias (separadas por coma)</label>
-                        <input
-                          type="text"
-                          placeholder="penicilina, ibuprofeno..."
-                          value={form.allergies}
+                        <input type="text" placeholder="penicilina, ibuprofeno..." value={form.allergies}
                           onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                        />
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
                       </div>
-                      
-                      {admitError && (
-                        <p className="text-xs text-red-600 font-medium">{admitError}</p>
-                      )}
-                      
+
+                      {admitError && <p className="text-xs text-red-600 font-medium">{admitError}</p>}
+
                       <div className="flex gap-2 pt-2">
                         <button
                           onClick={() => admitMutation.mutate(selectedBed.id)}
                           disabled={!form.dni.trim() || !form.name.trim() || !form.surnames.trim() || !form.dob || !form.diagnosis.trim() || !form.gender || admitMutation.isPending}
-                          className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50"
                         >
-                          {admitMutation.isPending
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <UserPlus className="w-4 h-4" />}
+                          {admitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                           Confirmar
                         </button>
                         <button
@@ -467,97 +573,69 @@ export default function BedMapPage() {
                         </button>
                       </div>
                     </div>
-                    )}
-                 </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
         </>
       )}
 
+      {/* Relocate modal */}
       {showRelocateModal && selectedBed?.patient && (
         <>
-          <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] transition-opacity"
-            onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
-          />
-          
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60]"
+            onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }} />
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-black text-slate-900">Reubicar Paciente</h3>
-                  <p className="text-xs text-slate-500 mt-1">{selectedBed.patient.name} {selectedBed.patient.surnames} → Hab. {selectedBed.room} Cama {selectedBed.letter}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {selectedBed.patient.name} {selectedBed.patient.surnames} → Hab. {selectedBed.room} Cama {selectedBed.letter}
+                  </p>
                 </div>
-                <button 
-                  onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-                >
+                <button onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                   <X className="w-5 h-5 text-slate-500" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selecciona cama destino</p>
-                
                 {freeBeds.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <p className="text-sm text-slate-500 font-medium">No hay camas libres disponibles</p>
-                  </div>
+                  <p className="text-sm text-slate-500 text-center py-8">No hay camas libres disponibles</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {freeBeds.map(bed => {
-                      const isSelected = relocateTarget === bed.id;
+                      const isSel = relocateTarget === bed.id;
                       return (
-                        <button
-                          key={bed.id}
-                          onClick={() => setRelocateTarget(bed.id)}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left
-                            ${isSelected 
-                              ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                            }`}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                        <button key={bed.id} onClick={() => setRelocateTarget(bed.id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${isSel ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSel ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
                             <BedDouble className="w-4 h-4" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800">Hab. {bed.room} - Cama {bed.letter}</p>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                          <p className="text-xs font-bold text-slate-800">Hab. {bed.room} - Cama {bed.letter}</p>
+                          {isSel && <Check className="w-4 h-4 text-blue-500 ml-auto" />}
                         </button>
                       );
                     })}
                   </div>
                 )}
-
-                {relocateError && (
-                  <p className="text-xs text-red-600 font-medium mt-4">{relocateError}</p>
-                )}
+                {relocateError && <p className="text-xs text-red-600 font-medium mt-4">{relocateError}</p>}
               </div>
 
               <div className="p-6 border-t border-slate-100 flex gap-3">
-                <button
-                  onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
-                  className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
-                >
+                <button onClick={() => { setShowRelocateModal(false); setRelocateTarget(null); setRelocateError(''); }}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50">
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    if (!relocateTarget) return;
-                    relocateMutation.mutate({ sourceBedId: selectedBed.id, targetBedId: relocateTarget });
-                  }}
+                  onClick={() => { if (!relocateTarget) return; relocateMutation.mutate({ sourceBedId: selectedBed.id, targetBedId: relocateTarget }); }}
                   disabled={!relocateTarget || relocateMutation.isPending}
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {relocateMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <ArrowRightLeft className="w-4 h-4" /> Confirmar
-                    </>
-                  )}
+                  {relocateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRightLeft className="w-4 h-4" /> Confirmar</>}
                 </button>
               </div>
             </div>

@@ -104,13 +104,13 @@ export default function DiagnosticTestsPage() {
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
 
-        {selectedPatientId && isDoctor && (
+        {selectedPatientId && (isDoctor || isNurse) && (
           <button
             onClick={() => setShowForm((v) => !v)}
             className={`flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-2xl transition-all shadow-sm ${showForm ? 'bg-slate-200 text-slate-700' : 'bg-slate-900 text-white hover:bg-black'}`}
           >
             {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showForm ? 'Cancelar' : 'Programar prueba'}
+            {showForm ? 'Cancelar' : isNurse ? 'Solicitar prueba' : 'Programar prueba'}
           </button>
         )}
 
@@ -123,9 +123,17 @@ export default function DiagnosticTestsPage() {
 
       {showForm && selectedPatientId && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          {isNurse && (
+            <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <span className="text-amber-500 text-sm">ℹ️</span>
+              <p className="text-xs text-amber-800 font-medium">
+                Como enfermero/a puedes <strong>solicitar</strong> pruebas. El médico debe aprobarlas y confirmarlas en el sistema.
+              </p>
+            </div>
+          )}
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" />
-            Programar nueva prueba diagnóstica
+            {isNurse ? 'Solicitar prueba diagnóstica' : 'Programar nueva prueba diagnóstica'}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
@@ -153,7 +161,7 @@ export default function DiagnosticTestsPage() {
             {scheduleMutation.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <CheckCircle2 className="w-4 h-4" />}
-            Confirmar programación
+            {isNurse ? 'Enviar solicitud al médico' : 'Confirmar programación'}
           </button>
         </div>
       )}
@@ -188,10 +196,10 @@ export default function DiagnosticTestsPage() {
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-slate-200 rounded-2xl">
           <TestTube className="w-12 h-12 opacity-30" />
           <p className="font-medium">Sin pruebas registradas para este paciente</p>
-          {isDoctor && (
+          {(isDoctor || isNurse) && (
             <button onClick={() => setShowForm(true)}
               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-bold mt-1">
-              <Plus className="w-4 h-4" />Programar primera prueba
+              <Plus className="w-4 h-4" />{isNurse ? 'Solicitar primera prueba' : 'Programar primera prueba'}
             </button>
           )}
         </div>

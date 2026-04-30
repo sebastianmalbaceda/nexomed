@@ -54,6 +54,7 @@ export default function PatientsPage() {
   });
 
   const isDoctor = user?.role === 'DOCTOR';
+  const isAdmin = user?.role === 'ADMIN';
 
   // Formulario de medicación
   const [showMedForm, setShowMedForm] = useState(false);
@@ -176,7 +177,7 @@ export default function PatientsPage() {
               <Calendar className="w-4 h-4" />
               Ingreso: {new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES')}
             </span>
-            {isDoctor && !selectedPatient.discharged && (
+            {isAdmin && !selectedPatient.discharged && (
               <button
                 onClick={() => {
                   if (window.confirm('¿Confirmas que deseas dar de alta a este paciente? Esta acción liberará su cama y ocultará al paciente de la lista.')) {

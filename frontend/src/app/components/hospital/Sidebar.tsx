@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BedDouble,
-  Users,
   Bell,
   TestTube,
   History,
@@ -13,6 +12,7 @@ import {
   Stethoscope,
   Calendar,
   AlertTriangle,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/lib/constants';
@@ -26,16 +26,18 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE', 'ADMIN'] },
+  // Beds + Patients unified: nurses access patients via bed map
+  { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE', 'ADMIN'] },
+  // Patients list visible only to DOCTOR and ADMIN (nurses navigate to patients from bed map)
+  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR', 'ADMIN'] },
   { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
   { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
   { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
   { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },
-  { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
+  { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR', 'ADMIN'] },
   { to: '/schedule',       label: 'Turno y Horario',      icon: Calendar,        roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR'] },
+  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR', 'ADMIN'] },
 ];
 
 export function Sidebar() {
@@ -110,7 +112,7 @@ export function Sidebar() {
               {user?.name ?? '—'}
             </p>
             <p className="text-xs text-sidebar-foreground/60">
-              {ROLE_LABELS[role]}
+              {ROLE_LABELS[role as Role]}
             </p>
           </div>
           <button
