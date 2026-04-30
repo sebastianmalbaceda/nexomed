@@ -21,7 +21,6 @@ model User {
   administeredSchedules MedSchedule[]    @relation("AdministeredBy")
   prescribedMeds        Medication[]     @relation("PrescribedBy")
   notifications         Notification[]
-  assignedPatients      Patient[]        @relation("AssignedNurse")
 }
 
 model Patient {
@@ -39,8 +38,7 @@ model Patient {
   dischargeDate        DateTime?
   discharged           Boolean          @default(false)
   surnames             String?
-  assignedNurseId     String?
-  assignedNurse       User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
+  assignedNurseId      String?
   careRecords          CareRecord[]
   diagnosticTests      DiagnosticTest[]
   incidents            Incident[]
