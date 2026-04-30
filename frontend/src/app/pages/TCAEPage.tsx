@@ -239,7 +239,7 @@ export default function TCAEPage() {
                       onClick={() => { setSelectedId(p.id); setErrors([]); setSuccessMsg(''); setValues({}); }}
                       className={`w-full text-left px-4 py-3 transition-all hover:bg-slate-50 border-l-4 ${isSelected ? 'bg-violet-50 border-violet-500' : 'border-transparent'}`}
                     >
-                      <p className="text-sm font-bold text-slate-900 truncate">{p.name}</p>
+                      <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
                       <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
                       <div className="flex gap-1 mt-1.5 flex-wrap">
                         {restr.map((r) => (
@@ -273,7 +273,7 @@ export default function TCAEPage() {
                     {new Date().getFullYear() - new Date(selected.dob).getFullYear() >= 65 ? '👴' : '🧑'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-white">{selected.name}</p>
+                    <p className="font-black text-white">{selected.name} {selected.surnames}</p>
                     <p className="text-xs text-slate-400">
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · {selected.diagnosis}
                     </p>

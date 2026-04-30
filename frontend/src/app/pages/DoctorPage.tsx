@@ -125,7 +125,7 @@ export default function DoctorPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-900 truncate">{p.name}</p>
+                          <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
                           <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
                         </div>
                         {hasAllergy && (
@@ -155,7 +155,7 @@ export default function DoctorPage() {
                     {new Date().getFullYear() - new Date(selected.dob).getFullYear() >= 65 ? '👴' : '🧑'}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-black text-white text-base">{selected.name}</h2>
+                    <h2 className="font-black text-white text-base">{selected.name} {selected.surnames}</h2>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {selected.dni && <span className="mr-2">DNI: {selected.dni}</span>}
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · Ingreso: {new Date(selected.admissionDate).toLocaleDateString('es-ES')}

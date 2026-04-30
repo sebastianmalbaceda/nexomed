@@ -569,7 +569,7 @@ export default function PatientsPage() {
                     onClick={() => navigate(`/patients/${p.id}`)}
                     className="border-t border-border hover:bg-accent/30 transition-colors cursor-pointer"
                   >
-                    <td className="px-5 py-3.5 font-medium text-foreground">{p.name}</td>
+                    <td className="px-5 py-3.5 font-medium text-foreground">{p.name} {p.surnames}</td>
                     <td className="px-5 py-3.5 text-muted-foreground hidden md:table-cell">
                       {ageFromDob(p.dob)} años
                     </td>

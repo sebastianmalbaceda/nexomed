@@ -90,7 +90,7 @@ export default function UnifiedHistoryPage() {
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-56"
           >
             <option value="">— Seleccionar paciente —</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
@@ -121,7 +121,7 @@ export default function UnifiedHistoryPage() {
               {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-white">{selectedPatient.name}</p>
+              <p className="font-black text-white">{selectedPatient.name} {selectedPatient.surnames}</p>
               <p className="text-xs text-slate-400">Historial clínico completo</p>
             </div>
             <FileText className="w-5 h-5 text-slate-400 shrink-0" />
