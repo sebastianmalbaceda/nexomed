@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  BedDouble, Search, X, Activity, Loader2, LogOut, UserPlus, Clock,
+  BedDouble, Search, X, Activity, Loader2, UserPlus, Clock,
   ArrowRightLeft, Check, Pill, UserCheck, ExternalLink,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -91,15 +91,6 @@ export default function BedMapPage() {
     )
   );
 
-  const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['beds'] });
-      qc.invalidateQueries({ queryKey: ['patients'] });
-      setSelectedBed(null);
-    },
-  });
-
   const admitMutation = useMutation({
     mutationFn: async (bedId: string) => {
       const allergiesArr = form.allergies.split(',').map(s => s.trim()).filter(Boolean);
@@ -185,9 +176,7 @@ export default function BedMapPage() {
   const occupiedCount = beds.filter(b => b.patient).length;
   const isNurse = user?.role === 'NURSE';
   const isDoctor = user?.role === 'DOCTOR';
-  const isAdmin = user?.role === 'ADMIN';
 
-  const canDischarge = isAdmin;
   const canRelocate = isDoctor || isNurse;
   const canAdmit = isDoctor || isNurse;
 
@@ -463,23 +452,6 @@ export default function BedMapPage() {
                       </button>
                     )}
 
-                    {/* Discharge — ADMIN only */}
-                    {canDischarge && (
-                      <button
-                        onClick={() => {
-                          if (confirm('¿Confirmar alta del paciente?')) {
-                            dischargeMutation.mutate(selectedBed.patient!.id);
-                          }
-                        }}
-                        disabled={dischargeMutation.isPending}
-                        className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
-                      >
-                        {dischargeMutation.isPending
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <LogOut className="w-4 h-4" />}
-                        Tramitar Alta (Administración)
-                      </button>
-                    )}
                   </div>
                 </div>
               ) : (
