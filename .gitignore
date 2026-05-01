@@ -4,8 +4,8 @@ dist/
 dist-ssr/
 *.local
 
-# Environment variables
-.env
+# Environment variables (tracked in this academic project — all team shares same DB)
+# .env
 .env.test
 
 # Logs
