@@ -21,7 +21,9 @@ const app = express();
 
 // CORS: solo permitir origen configurado (AGENTS.md rule)
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : 'http://localhost:5173',
   credentials: true,
 };
 app.use(cors(corsOptions));

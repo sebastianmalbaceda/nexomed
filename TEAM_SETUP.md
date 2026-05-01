@@ -1,129 +1,149 @@
-# Guía para el equipo - Configuración tras Pull
+# Guía para el equipo — Configuración tras Pull / Clone
 
-## Cambios importantes en esta versión
-
-✅ **Schema de BD actualizado:**
-- Campo `password` renombrado a `passwordHash` en tabla `User`
-- Añadido `assignedNurseId` y `surnames` en tabla `Patient`
-- Nuevos archivos: `ErrorBoundary.tsx`, `error.middleware.ts`
+> Actualizado: Mayo 2026
 
 ---
 
-## Pasos para que todo funcione (IMPORTANTE)
+## Pasos para que todo funcione
 
-### 1. Hacer Pull de los cambios
+### 1. Clonar o hacer Pull
+
 ```powershell
-cd C:\Users\TU_USUARIO\Desktop\NexoMed
+# Si es la primera vez:
+git clone https://github.com/sebastianmalbaceda/nexomed.git
+cd nexomed
+
+# Si ya tienes el repo:
 git pull origin main
 ```
 
-### 2. Instalar dependencias actualizadas
-```powershell
-# Frontend
-cd frontend
-npm install
+### 2. Instalar dependencias
 
+```powershell
 # Backend
-cd ../backend
+cd backend
+npm install
+
+# Frontend
+cd ../frontend
 npm install
 ```
 
-### 3. Sincronizar la Base de Datos (CRÍTICO)
+### 3. Configurar variables de entorno
 
-Si tu base de datos **ya tiene datos** (usuarios, pacientes):
+```powershell
+# Backend
+cd backend
+cp .env.example .env
+# Edita .env con tu DATABASE_URL de PostgreSQL y un JWT_SECRET seguro
+
+# Frontend
+cd ../frontend
+cp .env.example .env
+# Por defecto apunta a http://localhost:3000/api — no suele necesitar cambios
+```
+
+### 4. Sincronizar la Base de Datos
+
+Elige **una** de estas opciones:
+
+#### Opción A — Primera vez o BD nueva
 
 ```powershell
 cd backend
+npx prisma migrate dev    # crea el esquema desde cero
+npm run db:seed           # datos de prueba (usuarios, pacientes, camas)
+```
 
-# Opción A: Aplicar el script SQL directo (recomendado - preserva datos)
-# Este script renombra la columna y añade los nuevos campos
-npx prisma db execute --file=rename_password.sql
+#### Opción B — Unirse al proyecto (BD compartida de Neon ya existe)
 
-# Luego regenerar el cliente Prisma
+```powershell
+cd backend
+npx prisma generate       # regenera el cliente Prisma con el schema actual
+npx prisma migrate deploy # aplica migraciones pendientes (NO borra datos)
+```
+
+> **No necesitas `db:seed`** — los datos ya existen en la BD compartida.
+
+#### Opción C — Si Prisma da error de archivos bloqueados (Windows)
+
+```powershell
+# Cierra los servidores backend/frontend primero, luego:
 npx prisma generate
+npx prisma db push        # sincroniza schema sin crear migración
 ```
 
-Si tu base de datos **está vacía** o no te importan los datos:
+### 5. Arrancar en desarrollo
 
 ```powershell
+# Terminal 1 — Backend
 cd backend
+npm run dev               # Puerto 3000
 
-# Opción B: Forzar reseteo (BORRA TODOS LOS DATOS)
-npx prisma db push --force-reset
-
-# Regenerar cliente
-npx prisma generate
-
-# Volver a poblar con datos de prueba
-npx prisma db seed
+# Terminal 2 — Frontend
+cd ../frontend
+npm run dev               # Puerto 5173
 ```
 
-Si usas **Neon** y tienes problemas de conexión:
-- Verifica que el archivo `backend/.env` tenga la `DATABASE_URL` correcta
-- Asegúrate de que el proyecto Neon esté activo (no en pausa)
+Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 
-### 4. Verificar que todo compila
-```powershell
-# Terminal 1 - Backend
-cd backend
-npm run build  # Debe salir sin errores
+---
 
-# Terminal 2 - Frontend
-cd frontend
-npm run build  # Debe salir sin errores
-```
+## Credenciales de prueba
 
-### 5. Ejecutar el proyecto
-```powershell
-# Terminal 1 - Backend
-cd backend
-npm run dev  # Debe mostrar: "NexoMed backend corriendo en puerto 3000"
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev  # Debe mostrar: "VITE vX.X.X ready in XXXms"
-```
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| DOCTOR | dr.garcia@nexomed.es | password123 |
+| NURSE | enf.martinez@nexomed.es | password123 |
+| NURSE | enf.lopez@nexomed.es | password123 |
+| TCAE | tcae.sanchez@nexomed.es | password123 |
 
 ---
 
 ## Verificación rápida
 
 1. Abre http://localhost:5173/
-2. Inicia sesión con:
-   - **Email:** `dr.garcia@nexomed.es`
-   - **Contraseña:** `password123`
-3. Deberías ver el dashboard sin errores en consola
+2. Inicia sesión con cualquiera de las credenciales de arriba
+3. Deberías ver el dashboard correspondiente al rol sin errores
 
 ---
 
 ## Si algo falla
 
-### Error 500 en login:
+### Error de CORS en el navegador
+- Verifica que el frontend corre en puerto 5173 (o 5174)
+- El backend acepta ambos puertos por defecto en `.env.example`
+
+### Error 500 en login
 - Verifica que ejecutaste `npx prisma generate` después de sincronizar la BD
 - Asegúrate de que la columna en la BD se llama `passwordHash`, no `password`
 
-### Error de compilación TypeScript:
+### Error de compilación TypeScript
 - Borra `node_modules` y `package-lock.json`, luego `npm install`
 - En backend: borra `node_modules/.prisma` y ejecuta `npx prisma generate`
 
-### Error de conexión a BD:
-- Verifica `backend/.env` - la `DATABASE_URL` debe apuntar a tu instancia de Neon
+### Error de conexión a BD
+- Verifica `backend/.env` — la `DATABASE_URL` debe apuntar a tu instancia de Neon
 - Ejecuta `npx prisma db pull` para verificar conexión
 
----
-
-## Cambios en el código (para referencia)
-
-| Archivo | Cambio |
-|---------|--------|
-| `schema.prisma` | `password` → `passwordHash`, añadido `assignedNurseId` |
-| `auth.controller.ts` | `user.password` → `user.passwordHash` |
-| `seed.ts` | `password:` → `passwordHash:` |
-| `notification.service.ts` | Notifica al enfermero asignado, no a todos |
-| `main.tsx` | Añadido `ErrorBoundary` wrapper |
-| `hospital/index.ts` | Eliminado (barrel file innecesario) |
-| `BedMap.tsx` | Eliminado (código muerto) |
+### Puerto 5173 ocupado
+- Vite intentará usar 5174 automáticamente
+- Si quieres liberar 5173: `Get-NetTCPConnection -LocalPort 5173` y mata el proceso
 
 ---
 
-**¡Listo! Con estos pasos tu equipo tendrá todo funcionando correctamente.** 🚀
+## Esquema de la BD (Prisma)
+
+El schema está en `backend/prisma/schema.prisma`. Incluye:
+- **User** — médicos, enfermeros, TCAE (con passwordHash)
+- **Patient** — pacientes con assignedNurseId y status (ESTABLE/MODERADO/CRITICO/OBSERVACION)
+- **Bed** — camas de la planta (12 habitaciones × 2 camas)
+- **Medication / MedSchedule** — medicación pautada y horarios
+- **CareRecord** — registros de cuidados y constantes
+- **Notification** — notificaciones dirigidas al enfermero asignado
+- **Incident** — incidencias y evolutivos
+- **DiagnosticTest** — pruebas diagnósticas
+
+---
+
+**¡Listo! Con estos pasos tu equipo tendrá todo funcionando correctamente.**
