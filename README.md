@@ -62,15 +62,8 @@ npm run install:all
 
 ### Configurar variables de entorno
 
-```bash
-# Backend (backend/.env)
-cp backend/.env.example backend/.env
-# Edita con tu DATABASE_URL de PostgreSQL y JWT_SECRET
-
-# Frontend (frontend/.env)
-cp frontend/.env.example frontend/.env
-# Por defecto apunta a http://localhost:3000/api
-```
+> ✅ **Ya están configuradas** — los archivos `.env` vienen en el repositorio.
+> No necesitas copiar ni editar nada. El equipo comparte la misma BD de Neon.
 
 ### Base de datos
 

@@ -29,18 +29,21 @@ cd ../frontend
 npm install
 ```
 
-### 3. Configurar variables de entorno
+### 3. Variables de entorno
+
+> ✅ **Ya están configuradas** — los archivos `.env` vienen en el repositorio.
+> No necesitas copiar ni editar nada. Compartimos la misma BD de Neon.
+
+Si por alguna razón no existen:
 
 ```powershell
 # Backend
 cd backend
 cp .env.example .env
-# Edita .env con tu DATABASE_URL de PostgreSQL y un JWT_SECRET seguro
 
 # Frontend
 cd ../frontend
 cp .env.example .env
-# Por defecto apunta a http://localhost:3000/api — no suele necesitar cambios
 ```
 
 ### 4. Sincronizar la Base de Datos

@@ -83,7 +83,7 @@ nexomed/
 ├── backend/src/
 │   ├── routes/            ← Definición de endpoints por entidad
 │   ├── controllers/       ← Solo orquestación (lógica → services)
-│   ├── middleware/        ← auth.middleware.ts, role.middleware.ts
+│   ├── middlewares/       ← auth.middleware.ts (authenticate + authorize), error.middleware.ts
 │   ├── services/          ← Lógica de negocio (recálculo, notificaciones, CIMA)
 │   └── prisma/            ← schema.prisma + migraciones
 ├── SPEC.md                ← Fuente de verdad de requisitos
@@ -166,7 +166,6 @@ nexomed/
 - Añadir nuevos roles de usuario.
 
 ### NUNCA
-- Subir archivos `.env` o secretos al repositorio.
 - Escribir SQL crudo sin justificación en comentario.
 - Usar `localStorage` para guardar el token JWT.
 - Usar `any` en TypeScript sin comentario que explique por qué.
@@ -185,10 +184,11 @@ DATABASE_URL="postgresql://user:password@localhost:5432/nexomed"
 JWT_SECRET="tu_secreto_muy_seguro_min_32_chars"
 JWT_EXPIRES_IN="8h"
 PORT=3000
-CORS_ORIGIN="http://localhost:5173"
+CORS_ORIGIN="http://localhost:5173,http://localhost:5174"
 
 # .env (frontend)
 VITE_API_URL="http://localhost:3000/api"
+VITE_BACKEND_URL="http://localhost:3000"
 ```
 
 ---
