@@ -21,6 +21,7 @@ model User {
   administeredSchedules MedSchedule[]    @relation("AdministeredBy")
   prescribedMeds        Medication[]     @relation("PrescribedBy")
   notifications         Notification[]
+  assignedPatients      Patient[]        @relation("AssignedNurse")
 }
 
 model Patient {
@@ -40,6 +41,7 @@ model Patient {
   surnames             String?
   status               PatientStatus    @default(ESTABLE)
   assignedNurseId      String?
+  assignedNurse        User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
   careRecords          CareRecord[]
   diagnosticTests      DiagnosticTest[]
   incidents            Incident[]

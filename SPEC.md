@@ -1,6 +1,6 @@
 # SPEC.md — Especificación de Requisitos de NexoMed
 
-> Versión: 2.0.0 | Fecha: Abril 2026 | Estado: Actualizado
+> Versión: 2.1.0 | Fecha: Mayo 2026 | Estado: Actualizado
 
 ---
 
@@ -247,7 +247,7 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, reques
 
 ---
 
-## 9. Estado de Implementación (Actualizado Abril 2026)
+## 9. Estado de Implementación (Actualizado Mayo 2026)
 
 ### ✅ Completado
 - Backend con Express + Prisma + JWT implementado
@@ -255,19 +255,27 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, reques
 - Autenticación JWT con login/logout funcional
 - SSE (Server-Sent Events) para notificaciones en tiempo real
 - Mapa de camas con gestión de altas/bajas/reubicaciones
+- **Pestañas General/Mis Pacientes** en mapa de camas
+- **Asignación de enfermera a pacientes** (persiste en BD)
 - Registro de cuidados y constantes con anti-duplicidad
 - Integración con API CIMA (proxy en backend)
 - Shadcn UI + Tailwind correctamente configurados
 - Seed de base de datos con usuarios y pacientes de prueba
+- **Prescripción de medicación** (DoctorPage) con búsqueda CIMA
+- **Módulo de incidencias** completo (backend + frontend)
+- **Cronograma de medicación** visual por turnos (NursePage)
+- **Evolutivos y notas de turno** (EVOLUTIVO, FIN_TURNO, TRASLADO, INCIDENCIA)
+- **Estado del paciente** (ESTABLE/MODERADO/CRITICO/OBSERVACION)
+- **Enfermero puede solicitar pruebas diagnósticas** (el médico aprueba)
+- **Doctor no da de alta** — solo administración puede dar de alta
+- Error Boundary en React
 
 ### 🔄 En Progreso
-- Panel del médico (prescripción de medicación en desarrollo)
-- Módulo de incidencias (frontend creado, falta integración completa)
-- Cronograma MedicalSchedule (vista parcial implementada)
+- Documentación Swagger completa
+- Testing integrado (Jest + Supertest)
 
 ### 📋 Pendiente
-- Testing integrado completo (Jest + Supertest)
-- Documentación Swagger completa
+- Alertas de restricciones para TCAE (dieta, aislamiento, movilidad)
 - READMEs de frontend y backend
 - Preparación DEMO final
 - Validación final con el profesor

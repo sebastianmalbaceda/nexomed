@@ -1,6 +1,6 @@
 # PLANNING.md — Tareas Activas NexoMed
 
-> Actualizado: Abril 2026 | Sprint actual: **Sprint 2 — Core Clínico**
+> Actualizado: Mayo 2026 | Sprint actual: **Sprint 3 — Visualización e Incidencias**
 
 ---
 
@@ -62,7 +62,7 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
 
 ---
 
-## Sprint 2 — Core Clínico (En Progreso)
+## Sprint 2 — Core Clínico ✅ COMPLETADO
 
 ### ✅ Completado
 - [x] **Panel principal del Enfermero (DashboardOverview)**
@@ -75,6 +75,8 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
   - Modal de alta de paciente: asignar nombre, diagnóstico, alergias a cama libre
   - Modal de baja: liberar cama con confirmación
   - Reubicación de pacientes entre camas
+  - **Pestañas General/Mis Pacientes** — enfermera puede ver solo sus pacientes asignados
+  - **Asignación de enfermera** — desde el mapa de camas (persiste en BD)
 - [x] **Ficha del paciente (PatientsPage)**
   - Datos generales: nombre, edad, diagnóstico, motivo de ingreso
   - Alergias con badge de alerta roja
@@ -82,10 +84,13 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
   - Medicación activa del día con estado (pendiente / administrada)
   - Cuidados del turno actual
   - Registro de ingreso / re-ingreso por DNI
+  - **Estado del paciente** (ESTABLE/MODERADO/CRITICO/OBSERVACION)
+  - **Alta/baja eliminada del doctor** — solo administración puede dar de alta
 - [x] **Módulo de medicación del enfermero (NursePage)**
-  - Lista de pautas del paciente con horario programado
+  - **Cronograma de medicación** visual por turnos (Mañana/Tarde/Noche)
   - Botón "Administrar" → registra MedSchedule con timestamp y usuario
-  - Vista de horarios calculados con posibilidad de edición
+  - Indicador de dosis vencidas (pulse animation)
+  - Leyenda de medicación activa
 - [x] **Registro de cuidados y constantes (CareRecord)**
   - Formulario por tipo: constante (PA, FC, SpO2, temperatura, glucemia), cura, higiene
   - Validación anti-duplicidad: aviso si mismo tipo < 15 min
@@ -99,6 +104,22 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
 - [x] **Conexión con API CIMA (servicio proxy en backend)**
   - `cima.service.ts` implementado
   - Endpoints: `GET /api/drugs/search?q=:nombre` y `GET /api/drugs/:nregistro`
+- [x] **Prescripción de medicación (DoctorPage)**
+  - Frontend: formulario completo con búsqueda CIMA integrada
+  - Backend: implementado con generación automática de horarios
+  - Notificación a enfermero asignado al prescribir/retirar medicación
+- [x] **Módulo de incidencias (IncidentsPage)**
+  - Frontend: página completa con filtros y formulario
+  - Backend: `incidents.controller.ts` y `incidents.routes.ts` implementados
+  - Tipos de incidencias: rechazo de medicación, incidente de cuidados, efectos adversos, caídas
+  - Notificación automática al registrar incidencia
+- [x] **Evolutivos y notas de turno (NursePage)**
+  - Tipos: EVOLUTIVO, FIN_TURNO, TRASLADO, INCIDENCIA
+  - Formulario integrado en la vista de enfermero
+  - Historial de notas por paciente
+- [x] **Cronograma MedicalSchedule**
+  - Vista de planta (SYS-RF5): NurseShiftSchedulePage implementada
+  - Vista de paciente (SYS-RF6): MedCronogram integrado en NursePage
 
 ### ✅ Completado / 🔄 En Progreso
 - [x] **Prescripción de medicación (DoctorPage)**
@@ -119,18 +140,22 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
 
 ---
 
-## Sprint 3 — Visualización e Incidencias (Futuro)
+## Sprint 3 — Visualización e Incidencias ✅ COMPLETADO
 
-- [ ] Notificaciones en tiempo real (polling TanStack Query cada 5s) — ✅ YA IMPLEMENTADO
-- [ ] Panel médico completo (historial, prescripción, pruebas) — 🔄 EN PROGRESO
-- [ ] Prescripción de medicación → genera tarea en enfermero + notificación — 🔄 EN PROGRESO
-- [ ] Cronograma MedicalSchedule (SYS-RF5, SYS-RF6) — 🔄 EN PROGRESO
-- [ ] Módulo de incidencias (SYS-RF8) — 🔄 EN PROGRESO
+- [x] Notificaciones en tiempo real (polling TanStack Query cada 5s) — ✅ IMPLEMENTADO
+- [x] Panel médico completo (historial, prescripción, pruebas) — ✅ COMPLETADO
+- [x] Prescripción de medicación → genera tarea en enfermero + notificación — ✅ COMPLETADO
+- [x] Cronograma MedicalSchedule (SYS-RF5, SYS-RF6) — ✅ COMPLETADO
+- [x] Módulo de incidencias (SYS-RF8) — ✅ COMPLETADO
+- [x] Evolutivos y notas de turno — ✅ COMPLETADO
+- [x] Asignación de pacientes a enfermera — ✅ COMPLETADO
+- [x] Estado del paciente (ESTABLE/MODERADO/CRITICO/OBSERVACION) — ✅ COMPLETADO
+- [x] Enfermero puede solicitar pruebas diagnósticas — ✅ COMPLETADO
 - [ ] Alertas de restricciones para TCAE — 📋 PENDIENTE
 
 ---
 
-## Sprint 4 — Pulido Final (Futuro)
+## Sprint 4 — Pulido Final (En Progreso)
 
 - [ ] Testing integrado (Jest + Supertest para API crítica)
   - Solo hay `auth.test.ts` (4 tests) — falta: medications, beds, notifications, incidents
@@ -157,26 +182,33 @@ _No hay bloqueadores activos en este momento._
 
 ---
 
-## Cambios Recientes (Abril 2026)
+## Cambios Recientes (Mayo 2026)
+
+### Merge de rama `features` a `main`
+- ✅ Merge completado — avances del equipo integrados
+- ✅ Asignación de enfermera persiste en BD (`assignedNurseId` en `updatePatientSchema`)
+- ✅ Relación Prisma `assignedNurse` restaurada en schema
+- ✅ Schema sincronizado con Neon PostgreSQL
+- ✅ Frontend y backend compilan sin errores
+- ✅ Login funcional end-to-end
 
 ### Correcciones Críticas
 - ✅ Corregido `types.ts`: eliminada declaración duplicada de `NotificationType`
 - ✅ Actualizado `schema.prisma` a v2.0.0:
   - Renombrado `User.password` → `User.passwordHash`
   - Añadido `Patient.assignedNurseId` para notificaciones dirigidas
+  - Añadido `Patient.status` (PatientStatus enum)
   - Corregido `CareRecord.recordedBy` relación (campo `recordedById`)
 - ✅ Implementado `POST /api/auth/logout` en backend
 - ✅ Restringido CORS: de `*` a `http://localhost:5173`
 - ✅ Optimizado logging de Prisma: solo en desarrollo
 - ✅ Eliminado código muerto (`BedMap.tsx` hardcoded)
 - ✅ Actualizada documentación (SPEC.md v2.0.0, ARCHITECTURE.md v2.0.0)
+- ✅ Corregido `api.put` en frontend — añadido segundo argumento requerido
 
-### Próximos Pasos
-1. ⚠️ Ejecutar migración de Prisma cuando la BD esté disponible: `npx prisma migrate dev --name fix_password_hash_and_add_assigned_nurse`
-   - Bloqueado por error P1001: Base de datos no alcanzable
-2. ✅ Prescripción de medicación en frontend (DoctorPage) - COMPLETADO
-3. ✅ Módulo de incidencias completo (backend + frontend) - COMPLETADO
-4. ✅ Error Boundary en React - COMPLETADO
-5. 📋 Escribir tests para endpoints críticos (Jest + Supertest)
-6. 📋 Completar documentación Swagger de la API
-7. 📋 Crear READMEs para frontend y backend
+### Próximos Pasos (Sprint 4)
+1. 📋 Escribir tests para endpoints críticos (Jest + Supertest)
+2. 📋 Completar documentación Swagger de la API
+3. 📋 Crear READMEs para frontend y backend
+4. 📋 Alertas de restricciones para TCAE
+5. 📋 Preparación DEMO final

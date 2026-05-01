@@ -26,7 +26,8 @@ export const updatePatientSchema = z.object({
   dietRestriction: z.string().nullable().optional(),
   isolationRestriction: z.string().nullable().optional(),
   mobilityRestriction: z.string().nullable().optional(),
-  bedId: z.string().uuid('ID de cama inválido').nullable().optional()
+  bedId: z.string().uuid('ID de cama inválido').nullable().optional(),
+  assignedNurseId: z.string().uuid('ID de enfermero inválido').nullable().optional()
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;

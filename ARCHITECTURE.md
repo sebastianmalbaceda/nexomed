@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Arquitectura Técnica de NexoMed
 
-> Versión: 2.0.0 | Fecha: Abril 2026
+> Versión: 2.1.0 | Fecha: Mayo 2026
 
 ---
 
@@ -400,25 +400,30 @@ Se implementa mediante **SSE (Server-Sent Events)** y **polling activo** desde e
 
 ---
 
-## 9. Estado de Implementación (Actualizado Abril 2026)
+## 9. Estado de Implementación (Actualizado Mayo 2026)
 
 ### ✅ Completado
 - Backend Express + Prisma + JWT funcional
 - Frontend React 18 + Vite + TanStack Query operativo
 - SSE para notificaciones en tiempo real
-- Mapa de camas funcional (BedMapPage.tsx)
+- Mapa de camas funcional (BedMapPage.tsx) con pestañas General/Mis Pacientes
 - Registro de cuidados con anti-duplicidad
 - Integración CIMA (proxy backend)
 - Shadcn UI + Tailwind configurados
+- Prescripción de medicación (DoctorPage + búsqueda CIMA)
+- Módulo de incidencias completo
+- Cronograma de medicación visual por turnos
+- Evolutivos y notas de turno
+- Asignación de enfermera a pacientes (persiste en BD)
+- Estado del paciente (ESTABLE/MODERADO/CRITICO/OBSERVACION)
+- Enfermero puede solicitar pruebas diagnósticas
 
 ### 🔄 En Progreso
-- Prescripción de medicación (backend ✅, frontend en desarrollo)
-- Módulo de incidencias (parcial)
-- Historial unificado del paciente
+- Documentación Swagger completa
+- Testing integrado (Jest + Supertest)
 
 ### 📋 Pendiente
-- Tests completos (Jest + Supertest)
-- Documentación Swagger completa
+- Alertas de restricciones para TCAE
 - READMEs de frontend y backend
 - Error Boundary en React
 - Validación final con profesor

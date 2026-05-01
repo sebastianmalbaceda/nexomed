@@ -143,7 +143,7 @@ export default function BedMapPage() {
   });
 
   const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['beds'] });
       qc.invalidateQueries({ queryKey: ['patients'] });

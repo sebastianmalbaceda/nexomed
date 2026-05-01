@@ -92,7 +92,7 @@ export default function PatientsPage() {
   const [dischargeError, setDischargeError] = useState('');
 
   const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setDischargeError('');
