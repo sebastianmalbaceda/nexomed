@@ -7,6 +7,13 @@ import {
 import { api } from '@/lib/api';
 import type { Patient, Incident } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 const INCIDENT_TYPES = [
   { value: 'MED_REFUSAL',     label: 'Rechazo de medicación', icon: <Pill className="w-3 h-3" /> },
   { value: 'CARE_INCIDENT',   label: 'Incidente de cuidados', icon: <ClipboardList className="w-3 h-3" /> },
@@ -108,7 +115,7 @@ export default function IncidentsPage() {
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-64"
           >
             <option value="">— Todos los pacientes —</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
@@ -156,7 +163,7 @@ export default function IncidentsPage() {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30"
               >
                 <option value="">— Seleccionar paciente —</option>
-                {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
               </select>
             </div>
           )}
@@ -208,7 +215,10 @@ export default function IncidentsPage() {
             {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-sm">{selectedPatient.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-black text-white text-sm">{selectedPatient.name} {selectedPatient.surnames}</p>
+              {(() => { const sc = statusConfig[selectedPatient.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+            </div>
             <p className="text-slate-400 text-xs">{selectedPatient.diagnosis}</p>
           </div>
           {selectedPatient.allergies.length > 0 && (

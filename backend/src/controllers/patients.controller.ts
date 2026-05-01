@@ -64,7 +64,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
   }
 
   const {
-    dni, name, surnames, dob, diagnosis, allergies, bedId,
+    dni, name, surnames, dob, diagnosis, status, allergies, bedId,
     dietRestriction, isolationRestriction, mobilityRestriction,
   } = validation.data;
 
@@ -83,6 +83,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
             name,
             surnames: surnames ?? existing.surnames,
             diagnosis,
+            status: status ?? existing.status,
             allergies,
             bedId: bedId ?? null,
             admissionDate: new Date(),
@@ -101,7 +102,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
     // Alta nueva
     const patient = await prisma.patient.create({
       data: {
-        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, allergies, bedId,
+        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, status, allergies, bedId,
         dietRestriction, isolationRestriction, mobilityRestriction,
       },
       include: { bed: true }

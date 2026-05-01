@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, LogOut, UserPlus, X, Check } from 'lucide-react';
+import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check, LogOut, HeartPulse } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import type { Patient, Medication, CareRecord, VitalSigns } from '@/lib/types';
+import type { Patient, Medication, CareRecord, VitalSigns, Bed } from '@/lib/types';
 
 // Computed once at module load — avoids impure Date.now() calls during render
 const NOW_MS = new Date().getTime();
@@ -12,6 +12,13 @@ const NOW_MS = new Date().getTime();
 function ageFromDob(dob: string): number {
   return Math.floor((NOW_MS - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
+
+const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'En observación', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+};
 
 export default function PatientsPage() {
   const { patientId } = useParams();
@@ -22,6 +29,13 @@ export default function PatientsPage() {
     queryKey: ['patients'],
     queryFn: () => api.get<Patient[]>('/patients'),
   });
+
+  const { data: beds = [] } = useQuery<Bed[]>({
+    queryKey: ['beds'],
+    queryFn: () => api.get<Bed[]>('/beds'),
+  });
+
+  const freeBeds = beds.filter(b => !b.patient);
 
   const { data: patientMedications = [] } = useQuery({
     queryKey: ['medications', patientId],
@@ -45,15 +59,10 @@ export default function PatientsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
-      navigate('/patients');
-    },
-  });
-
   const isDoctor = user?.role === 'DOCTOR';
+
+  const [showStatusEdit, setShowStatusEdit] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
 
   // Formulario de medicación
   const [showMedForm, setShowMedForm] = useState(false);
@@ -80,6 +89,27 @@ export default function PatientsPage() {
     },
   });
 
+  const [dischargeError, setDischargeError] = useState('');
+
+  const dischargeMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      setDischargeError('');
+      navigate('/patients');
+    },
+    onError: (e: Error) => setDischargeError(e.message),
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.put(`/patients/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      setShowStatusEdit(false);
+    },
+  });
+
   // Formulario de registro / re-ingreso
   const [showForm, setShowForm] = useState(false);
   const [dniSearch, setDniSearch] = useState('');
@@ -90,6 +120,7 @@ export default function PatientsPage() {
     surnames: '',
     dob: '',
     diagnosis: '',
+    status: 'ESTABLE' as string,
     allergies: [] as string[],
     bedId: '',
   });
@@ -106,14 +137,17 @@ export default function PatientsPage() {
         surnames: patient.surnames ?? '',
         dob: patient.dob,
         diagnosis: '',
+        status: patient.status ?? 'ESTABLE',
         allergies: [...patient.allergies],
       }));
     },
     onError: () => {
       setDniFound(null);
-      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', allergies: [] }));
+      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [] }));
     },
   });
+
+  const [createError, setCreateError] = useState('');
 
   const createPatientMutation = useMutation({
     mutationFn: (data: typeof form) => api.post('/patients', data),
@@ -122,8 +156,10 @@ export default function PatientsPage() {
       setShowForm(false);
       setDniSearch('');
       setDniFound(null);
-      setForm({ dni: '', name: '', surnames: '', dob: '', diagnosis: '', allergies: [], bedId: '' });
+      setCreateError('');
+      setForm({ dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [], bedId: '' });
     },
+    onError: (e: Error) => setCreateError(e.message),
   });
 
   const handleAddAllergy = () => {
@@ -165,33 +201,84 @@ export default function PatientsPage() {
               <p className="text-xs text-muted-foreground mt-1">DNI: {selectedPatient.dni}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {selectedPatient.bed && (
               <span className="inline-flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-full">
                 <BedDouble className="w-4 h-4" />
                 Hab. {selectedPatient.bed.room}{selectedPatient.bed.letter}
               </span>
             )}
+            {(() => {
+              const sc = statusConfig[selectedPatient.status] ?? statusConfig.ESTABLE;
+              return (
+                <span className={`inline-flex items-center gap-1.5 text-sm ${sc.bg} ${sc.text} px-3 py-1.5 rounded-full`}>
+                  <span className={`w-2 h-2 rounded-full ${sc.dot}`} />
+                  {sc.label}
+                </span>
+              );
+            })()}
             <span className="inline-flex items-center gap-1.5 text-sm bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
               <Calendar className="w-4 h-4" />
               Ingreso: {new Date(selectedPatient.admissionDate).toLocaleDateString('es-ES')}
             </span>
-            {isDoctor && !selectedPatient.discharged && (
-              <button
-                onClick={() => {
-                  if (window.confirm('¿Confirmas que deseas dar de alta a este paciente? Esta acción liberará su cama y ocultará al paciente de la lista.')) {
-                    dischargeMutation.mutate(selectedPatient.id);
-                  }
-                }}
-                disabled={dischargeMutation.isPending}
-                className="inline-flex items-center gap-1.5 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
-              >
-                <LogOut className="w-4 h-4" />
-                {dischargeMutation.isPending ? 'Procesando...' : 'Dar de alta'}
-              </button>
+            {isDoctor && (
+              <>
+                <button
+                  onClick={() => { setNewStatus(selectedPatient.status); setShowStatusEdit(true); }}
+                  className="inline-flex items-center gap-1.5 text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full hover:bg-blue-200 transition-colors"
+                >
+                  <HeartPulse className="w-4 h-4" />
+                  Cambiar estado
+                </button>
+                <button
+                  onClick={() => { if (window.confirm(`¿Dar de alta a ${selectedPatient.name} ${selectedPatient.surnames}?`)) dischargeMutation.mutate(selectedPatient.id); }}
+                  disabled={dischargeMutation.isPending}
+                  className="inline-flex items-center gap-1.5 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-full hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Dar de alta
+                </button>
+              </>
             )}
           </div>
         </div>
+
+        {showStatusEdit && isDoctor && (
+          <div className="bg-card border border-border rounded-xl p-4 flex items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-foreground mb-1">Nuevo estado clínico</label>
+              <select
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="ESTABLE">Estable</option>
+                <option value="OBSERVACION">En observación</option>
+                <option value="MODERADO">Moderado</option>
+                <option value="CRITICO">Crítico</option>
+              </select>
+            </div>
+            <button
+              onClick={() => updateStatusMutation.mutate({ id: selectedPatient.id, status: newStatus })}
+              disabled={updateStatusMutation.isPending}
+              className="bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-1"
+            >
+              <Check className="w-4 h-4" /> Guardar
+            </button>
+            <button
+              onClick={() => setShowStatusEdit(false)}
+              className="text-sm px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {dischargeError && (
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />{dischargeError}
+          </div>
+        )}
 
         {selectedPatient.allergies.length > 0 && (
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 flex items-center gap-2">
@@ -495,6 +582,19 @@ export default function PatientsPage() {
               />
             </div>
             <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-1">Estado clínico *</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="ESTABLE">Estable</option>
+                <option value="OBSERVACION">En observación</option>
+                <option value="MODERADO">Moderado</option>
+                <option value="CRITICO">Crítico</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-foreground mb-1">Asignar cama (opcional)</label>
               <select
                 value={form.bedId}
@@ -502,7 +602,9 @@ export default function PatientsPage() {
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Sin asignar</option>
-                {/* Aquí deberías cargar las camas libres con useQuery */}
+                {freeBeds.map(b => (
+                  <option key={b.id} value={b.id}>Hab. {b.room} — Cama {b.letter} (Planta {b.floor})</option>
+                ))}
               </select>
             </div>
           </div>
@@ -536,6 +638,12 @@ export default function PatientsPage() {
               {form.allergies.length === 0 && <span className="text-xs text-muted-foreground">Sin alergias</span>}
             </div>
           </div>
+
+          {createError && (
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />{createError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <button
@@ -579,6 +687,7 @@ export default function PatientsPage() {
                   <th className="text-left px-5 py-3 font-medium">Paciente</th>
                   <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Edad</th>
                   <th className="text-left px-5 py-3 font-medium">Diagnóstico</th>
+                  <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Estado</th>
                   <th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Cama</th>
                   <th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Ingreso</th>
                   <th className="text-left px-5 py-3 font-medium">Alergias</th>
@@ -591,12 +700,23 @@ export default function PatientsPage() {
                     onClick={() => navigate(`/patients/${p.id}`)}
                     className="border-t border-border hover:bg-accent/30 transition-colors cursor-pointer"
                   >
-                    <td className="px-5 py-3.5 font-medium text-foreground">{p.name}</td>
+                    <td className="px-5 py-3.5 font-medium text-foreground">{p.name} {p.surnames}</td>
                     <td className="px-5 py-3.5 text-muted-foreground hidden md:table-cell">
                       {ageFromDob(p.dob)} años
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground max-w-52 truncate">
                       {p.diagnosis}
+                    </td>
+                    <td className="px-5 py-3.5 hidden md:table-cell">
+                      {(() => {
+                        const sc = statusConfig[p.status] ?? statusConfig.ESTABLE;
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-xs ${sc.bg} ${sc.text} px-2 py-0.5 rounded-full font-medium`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                            {sc.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-5 py-3.5 hidden lg:table-cell">
                       {p.bed ? (

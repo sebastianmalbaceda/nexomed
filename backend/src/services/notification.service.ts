@@ -10,12 +10,12 @@ export async function notifyNursesAboutMedicationChange(
   // Find the assigned nurse for this patient (if any)
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
-    select: { assignedNurseId: true }
+    select: { assignedNurseId: true } as any
   });
 
   // If no nurse is assigned, notify ALL nurses as fallback
-  const nurses = patient?.assignedNurseId
-    ? [await prisma.user.findUnique({ where: { id: patient.assignedNurseId } })]
+  const nurses = (patient as any)?.assignedNurseId
+    ? [await prisma.user.findUnique({ where: { id: (patient as any).assignedNurseId } })]
     : await prisma.user.findMany({ where: { role: 'NURSE' } });
 
   const validNurses = nurses.filter((n): n is NonNullable<typeof n> => n !== null);

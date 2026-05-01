@@ -136,7 +136,7 @@ export function DashboardOverview() {
                       className="border-t border-border hover:bg-accent/30 cursor-pointer transition-colors"
                       onClick={() => navigate(`/patients/${p.id}`)}
                     >
-                      <td className="px-5 py-3 font-medium text-foreground">{p.name}</td>
+                      <td className="px-5 py-3 font-medium text-foreground">{p.name} {p.surnames}</td>
                       <td className="px-5 py-3 text-muted-foreground hidden md:table-cell truncate max-w-50">
                         {p.diagnosis}
                       </td>

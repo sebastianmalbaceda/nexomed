@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BedDouble,
-  Users,
   Bell,
   TestTube,
   History,
@@ -13,6 +12,7 @@ import {
   Stethoscope,
   Calendar,
   AlertTriangle,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/lib/constants';
@@ -28,7 +28,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
   { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['NURSE', 'DOCTOR', 'TCAE'] },
+  // Nurses navigate to patients from the bed map; doctors keep the list view
+  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR'] },
   { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
   { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
   { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },

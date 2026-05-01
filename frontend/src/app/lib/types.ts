@@ -10,6 +10,8 @@ export interface User {
   createdAt: string;
 }
 
+export type PatientStatus = 'ESTABLE' | 'MODERADO' | 'CRITICO' | 'OBSERVACION';
+
 export interface Patient {
   id: string;
   dni: string | null;
@@ -18,6 +20,7 @@ export interface Patient {
   /** ISO date string */
   dob: string;
   diagnosis: string;
+  status: PatientStatus;
   allergies: string[];
   dietRestriction: string | null;
   isolationRestriction: string | null;
@@ -29,6 +32,8 @@ export interface Patient {
   dischargeDate: string | null;
   bedId: string | null;
   bed?: Bed;
+  assignedNurseId: string | null;
+  assignedNurse?: { id: string; name: string } | null;
 }
 
 export interface Bed {
@@ -108,7 +113,11 @@ export type IncidentType =
   | 'VOMIT_AFTER_MED'
   | 'SIDE_EFFECT'
   | 'FALL'
-  | 'OTHER';
+  | 'OTHER'
+  | 'EVOLUTIVO'
+  | 'FIN_TURNO'
+  | 'TRASLADO'
+  | 'INCIDENCIA';
 
 export interface Incident {
   id: string;
@@ -116,6 +125,7 @@ export interface Incident {
   type: IncidentType | string;
   description: string;
   reportedBy: string;
+  reportedById?: string;
   /** ISO date string */
   reportedAt: string;
 }

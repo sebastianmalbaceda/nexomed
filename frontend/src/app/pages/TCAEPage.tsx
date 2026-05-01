@@ -7,6 +7,13 @@ import {
 import { api } from '@/lib/api';
 import type { Patient, CareRecord, Medication, Incident } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 // ── Vitals ──────────────────────────────────────────────────────────────────
 const VITAL_FIELDS = [
   { key: 'constante_fc',   label: 'Frec. Cardíaca', unit: 'bpm',  placeholder: '72',    color: 'bg-red-500' },
@@ -239,7 +246,10 @@ export default function TCAEPage() {
                       onClick={() => { setSelectedId(p.id); setErrors([]); setSuccessMsg(''); setValues({}); }}
                       className={`w-full text-left px-4 py-3 transition-all hover:bg-slate-50 border-l-4 ${isSelected ? 'bg-violet-50 border-violet-500' : 'border-transparent'}`}
                     >
-                      <p className="text-sm font-bold text-slate-900 truncate">{p.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-slate-900 truncate">{p.name} {p.surnames}</p>
+                        {(() => { const sc = statusConfig[p.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+                      </div>
                       <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
                       <div className="flex gap-1 mt-1.5 flex-wrap">
                         {restr.map((r) => (
@@ -273,7 +283,10 @@ export default function TCAEPage() {
                     {new Date().getFullYear() - new Date(selected.dob).getFullYear() >= 65 ? '👴' : '🧑'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-white">{selected.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-black text-white">{selected.name} {selected.surnames}</p>
+                      {(() => { const sc = statusConfig[selected.status] ?? statusConfig.ESTABLE; return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+                    </div>
                     <p className="text-xs text-slate-400">
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · {selected.diagnosis}
                     </p>

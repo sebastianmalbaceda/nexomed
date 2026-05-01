@@ -21,7 +21,6 @@ model User {
   administeredSchedules MedSchedule[]    @relation("AdministeredBy")
   prescribedMeds        Medication[]     @relation("PrescribedBy")
   notifications         Notification[]
-  assignedPatients      Patient[]        @relation("AssignedNurse")
 }
 
 model Patient {
@@ -39,8 +38,8 @@ model Patient {
   dischargeDate        DateTime?
   discharged           Boolean          @default(false)
   surnames             String?
-  assignedNurseId     String?
-  assignedNurse       User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
+  status               PatientStatus    @default(ESTABLE)
+  assignedNurseId      String?
   careRecords          CareRecord[]
   diagnosticTests      DiagnosticTest[]
   incidents            Incident[]
@@ -135,6 +134,13 @@ model DiagnosticTest {
   status        String   @default("PENDING")
   patient       Patient  @relation(fields: [patientId], references: [id])
   requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id])
+}
+
+enum PatientStatus {
+  ESTABLE
+  MODERADO
+  CRITICO
+  OBSERVACION
 }
 
 enum Role {

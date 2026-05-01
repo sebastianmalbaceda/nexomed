@@ -8,6 +8,13 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
+const statusConfig: Record<string, { label: string; dot: string }> = {
+  ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
+  OBSERVACION: { label: 'Observación', dot: 'bg-amber-500' },
+  MODERADO: { label: 'Moderado', dot: 'bg-orange-500' },
+  CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
+};
+
 export default function DiagnosticTestsPage() {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
@@ -99,18 +106,18 @@ export default function DiagnosticTestsPage() {
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-64"
           >
             <option value="">— Seleccionar paciente —</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
 
-        {selectedPatientId && isDoctor && (
+        {selectedPatientId && (isDoctor || isNurse) && (
           <button
             onClick={() => setShowForm((v) => !v)}
             className={`flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-2xl transition-all shadow-sm ${showForm ? 'bg-slate-200 text-slate-700' : 'bg-slate-900 text-white hover:bg-black'}`}
           >
             {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showForm ? 'Cancelar' : 'Programar prueba'}
+            {showForm ? 'Cancelar' : isNurse ? 'Solicitar prueba' : 'Programar prueba'}
           </button>
         )}
 
@@ -123,9 +130,17 @@ export default function DiagnosticTestsPage() {
 
       {showForm && selectedPatientId && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          {isNurse && (
+            <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <span className="text-amber-500 text-sm">ℹ️</span>
+              <p className="text-xs text-amber-800 font-medium">
+                Como enfermero/a puedes <strong>solicitar</strong> pruebas. El médico debe aprobarlas y confirmarlas en el sistema.
+              </p>
+            </div>
+          )}
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" />
-            Programar nueva prueba diagnóstica
+            {isNurse ? 'Solicitar prueba diagnóstica' : 'Programar nueva prueba diagnóstica'}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
@@ -153,7 +168,7 @@ export default function DiagnosticTestsPage() {
             {scheduleMutation.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <CheckCircle2 className="w-4 h-4" />}
-            Confirmar programación
+            {isNurse ? 'Enviar solicitud al médico' : 'Confirmar programación'}
           </button>
         </div>
       )}
@@ -164,7 +179,10 @@ export default function DiagnosticTestsPage() {
             {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear() >= 65 ? '👴' : '🧑'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-sm">{selectedPatient.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-black text-white text-sm">{selectedPatient.name} {selectedPatient.surnames}</p>
+              {(() => { const sc = statusConfig[selectedPatient.status] ?? statusConfig.ESTABLE; return <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
+            </div>
             <p className="text-slate-400 text-xs">{selectedPatient.diagnosis}</p>
           </div>
           {selectedPatient.allergies.length > 0 && (
@@ -188,10 +206,10 @@ export default function DiagnosticTestsPage() {
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-slate-200 rounded-2xl">
           <TestTube className="w-12 h-12 opacity-30" />
           <p className="font-medium">Sin pruebas registradas para este paciente</p>
-          {isDoctor && (
+          {(isDoctor || isNurse) && (
             <button onClick={() => setShowForm(true)}
               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-bold mt-1">
-              <Plus className="w-4 h-4" />Programar primera prueba
+              <Plus className="w-4 h-4" />{isNurse ? 'Solicitar primera prueba' : 'Programar primera prueba'}
             </button>
           )}
         </div>
