@@ -62,8 +62,16 @@ npm run install:all
 
 ### Configurar variables de entorno
 
-> ✅ **Ya están configuradas** — los archivos `.env` vienen en el repositorio.
-> No necesitas copiar ni editar nada. El equipo comparte la misma BD de Neon.
+> ✅ **Nota:** Los archivos `.env` ya vienen en el repositorio con la configuración compartida.
+> Si ya existen, **puedes omitir este paso**. Solo ejecútalo si por alguna razón faltan.
+
+```bash
+# Backend (omitir si backend/.env ya existe)
+cp backend/.env.example backend/.env
+
+# Frontend (omitir si frontend/.env ya existe)
+cp frontend/.env.example frontend/.env
+```
 
 ### Base de datos
 

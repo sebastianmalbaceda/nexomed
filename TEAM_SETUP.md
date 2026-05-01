@@ -31,17 +31,15 @@ npm install
 
 ### 3. Variables de entorno
 
-> ✅ **Ya están configuradas** — los archivos `.env` vienen en el repositorio.
-> No necesitas copiar ni editar nada. Compartimos la misma BD de Neon.
-
-Si por alguna razón no existen:
+> ✅ **Nota:** Los archivos `.env` ya vienen en el repositorio con la configuración compartida.
+> Si ya existen, **puedes omitir este paso**. Solo ejecútalo si por alguna razón faltan.
 
 ```powershell
-# Backend
+# Backend (omitir si backend/.env ya existe)
 cd backend
 cp .env.example .env
 
-# Frontend
+# Frontend (omitir si frontend/.env ya existe)
 cd ../frontend
 cp .env.example .env
 ```
