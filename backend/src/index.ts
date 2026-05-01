@@ -46,5 +46,17 @@ app.use('/api/drugs', drugRoutes);
 // Global error handler (must be last middleware)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`NexoMed backend corriendo en puerto ${PORT}`));
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+const server = app.listen(PORT, () => console.log(`NexoMed backend corriendo en puerto ${PORT}`));
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    const fallbackPort = PORT + 1;
+    console.log(`Puerto ${PORT} ocupado, usando ${fallbackPort}...`);
+    server.listen(fallbackPort, () => console.log(`NexoMed backend corriendo en puerto ${fallbackPort}`));
+  } else {
+    console.error('Error al iniciar el servidor:', err.message);
+    process.exit(1);
+  }
+});
