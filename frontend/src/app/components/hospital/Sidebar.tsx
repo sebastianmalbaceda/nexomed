@@ -28,8 +28,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
   { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  // Nurses navigate to patients from the bed map; doctors keep the list view
-  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR'] },
+  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR', 'NURSE'] },
   { to: '/doctor',         label: 'Vista Médico',         icon: Stethoscope,     roles: ['DOCTOR'] },
   { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE'] },
   { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
@@ -37,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },
   { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
   { to: '/schedule',       label: 'Turno y Horario',      icon: Calendar,        roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR'] },
+  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR', 'TCAE'] },
 ];
 
 export function Sidebar() {

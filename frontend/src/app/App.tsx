@@ -69,18 +69,18 @@ export default function App() {
           {/* Protected layout */}
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard"     element={<DashboardPage />} />
-<Route path="/patients"          element={<PatientsPage />} />
-            <Route path="/patients/:patientId" element={<PatientsPage />} />
-            <Route path="/beds"          element={<BedMapPage />} />
-            <Route path="/doctor"         element={<ProtectedRoute allowedRoles={['DOCTOR']}><DoctorPage /></ProtectedRoute>} />
-            <Route path="/nurse"         element={<ProtectedRoute allowedRoles={['NURSE']}><NursePage /></ProtectedRoute>} />
-            <Route path="/vitals"        element={<ProtectedRoute allowedRoles={['TCAE', 'NURSE']}><TCAEPage /></ProtectedRoute>} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/tests"         element={<DiagnosticTestsPage />} />
-            <Route path="/history"       element={<UnifiedHistoryPage />} />
-            <Route path="/incidents"     element={<IncidentsPage />} />
-            <Route path="/schedule"      element={<NurseShiftSchedulePage />} />
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><DashboardPage /></ProtectedRoute>} />
+            <Route path="/patients" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
+            <Route path="/patients/:patientId" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
+            <Route path="/beds" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><BedMapPage /></ProtectedRoute>} />
+            <Route path="/doctor" element={<ProtectedRoute allowedRoles={['DOCTOR']}><DoctorPage /></ProtectedRoute>} />
+            <Route path="/nurse" element={<ProtectedRoute allowedRoles={['NURSE']}><NursePage /></ProtectedRoute>} />
+            <Route path="/vitals" element={<ProtectedRoute allowedRoles={['TCAE', 'NURSE']}><TCAEPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/tests" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><DiagnosticTestsPage /></ProtectedRoute>} />
+            <Route path="/history" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><UnifiedHistoryPage /></ProtectedRoute>} />
+            <Route path="/incidents" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><IncidentsPage /></ProtectedRoute>} />
+            <Route path="/schedule" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><NurseShiftSchedulePage /></ProtectedRoute>} />
           </Route>
 
           {/* Fallback */}
