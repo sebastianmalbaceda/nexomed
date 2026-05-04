@@ -30,7 +30,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
   // Nurses navigate to patients from the bed map; doctors keep the list view
   { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR'] },
-  { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
+  { to: '/doctor',         label: 'Vista Médico',         icon: Stethoscope,     roles: ['DOCTOR'] },
+  { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE'] },
   { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
   { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
   { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStream } from '@/hooks/useNotificationStream';
@@ -12,6 +13,7 @@ import BedMapPage from '@/pages/BedMapPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import DiagnosticTestsPage from '@/pages/DiagnosticTestsPage';
 import UnifiedHistoryPage from '@/pages/UnifiedHistoryPage';
+import DoctorPage from '@/pages/DoctorPage';
 import NursePage from '@/pages/NursePage';
 import TCAEPage from '@/pages/TCAEPage';
 import IncidentsPage from '@/pages/IncidentsPage';
@@ -71,8 +73,9 @@ export default function App() {
 <Route path="/patients"          element={<PatientsPage />} />
             <Route path="/patients/:patientId" element={<PatientsPage />} />
             <Route path="/beds"          element={<BedMapPage />} />
-            <Route path="/nurse"         element={<NursePage />} />
-            <Route path="/vitals"        element={<TCAEPage />} />
+            <Route path="/doctor"         element={<ProtectedRoute allowedRoles={['DOCTOR']}><DoctorPage /></ProtectedRoute>} />
+            <Route path="/nurse"         element={<ProtectedRoute allowedRoles={['NURSE']}><NursePage /></ProtectedRoute>} />
+            <Route path="/vitals"        element={<ProtectedRoute allowedRoles={['TCAE', 'NURSE']}><TCAEPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/tests"         element={<DiagnosticTestsPage />} />
             <Route path="/history"       element={<UnifiedHistoryPage />} />

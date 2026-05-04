@@ -156,7 +156,6 @@ export function PatientSchedule({ patientId }: { patientId: string }) {
       <div className="flex items-center gap-2 px-5 py-4 border-b border-border bg-gradient-to-r from-blue-50 to-violet-50">
         <Calendar className="w-5 h-5 text-blue-600" />
         <h3 className="font-semibold text-foreground">Cronograma del paciente</h3>
-        <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">SYS-RF6</span>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={goPrevDay} className="p-1.5 hover:bg-white rounded-lg transition-colors" title="Día anterior">
             <ChevronLeft className="w-4 h-4 text-slate-600" />

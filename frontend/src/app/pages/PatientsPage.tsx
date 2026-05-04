@@ -40,7 +40,7 @@ export default function PatientsPage() {
 
   const { data: patientMedications = [] } = useQuery({
     queryKey: ['medications', patientId],
-    queryFn: () => api.get<Medication[]>(`/patients/${patientId}/medications`),
+    queryFn: () => api.get<Medication[]>(`/medications/${patientId}`),
     enabled: !!patientId,
   });
 

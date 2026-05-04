@@ -247,6 +247,9 @@ export default function NursePage() {
   const [noteError, setNoteError] = useState('');
   const [showNoteForm, setShowNoteForm] = useState(false);
 
+  // Reschedule medication panel
+  const [rescheduleMedId, setRescheduleMedId] = useState<string | null>(null);
+
   // ─── Queries ───────────────────────────────────────────────────────────────
 
   const { data: patients = [], isLoading, isError } = useQuery({
@@ -299,6 +302,16 @@ export default function NursePage() {
     mutationFn: (scheduleId: string) =>
       api.post(`/medications/schedules/${scheduleId}/administer`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['medications', selectedId] }),
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ medId, newStartTime }: { medId: string; newStartTime: string }) =>
+      api.put(`/medications/${medId}/schedule`, { newStartTime }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medications', selectedId] });
+      qc.invalidateQueries({ queryKey: ['schedule'] });
+      setRescheduleMedId(null);
+    },
   });
 
   const noteMutation = useMutation({
@@ -524,14 +537,90 @@ export default function NursePage() {
                   <div className="px-4 pb-4">
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Medicación activa</p>
-                      <div className="space-y-1.5">
-                        {medications.map(m => (
-                          <div key={m.id} className="flex items-center gap-2 text-xs">
-                            <span className="font-bold text-slate-800">{m.drugName}</span>
-                            <span className="text-slate-400">—</span>
-                            <span className="text-slate-500">{m.dose} · {m.route} · cada {m.frequencyHrs}h</span>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        {medications.map(m => {
+                          const isOpen = rescheduleMedId === m.id;
+                          const isBusy = rescheduleMutation.isPending && rescheduleMutation.variables?.medId === m.id;
+
+                          const applyPreset = (offsetMs: number | 'now' | 'shift07' | 'shift15' | 'shift23') => {
+                            let t: Date;
+                            const base = new Date();
+                            if (offsetMs === 'now') {
+                              t = base;
+                            } else if (offsetMs === 'shift07') {
+                              t = new Date(base); t.setHours(7, 0, 0, 0);
+                            } else if (offsetMs === 'shift15') {
+                              t = new Date(base); t.setHours(15, 0, 0, 0);
+                            } else if (offsetMs === 'shift23') {
+                              t = new Date(base); t.setHours(23, 0, 0, 0);
+                            } else {
+                              t = new Date(base.getTime() + offsetMs);
+                            }
+                            rescheduleMutation.mutate({ medId: m.id, newStartTime: t.toISOString() });
+                          };
+
+                          return (
+                            <div key={m.id} className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="font-bold text-slate-800">{m.drugName}</span>
+                                <span className="text-slate-400">—</span>
+                                <span className="text-slate-500">{m.dose} · {m.route} · cada {m.frequencyHrs}h</span>
+                                <button
+                                  onClick={() => setRescheduleMedId(isOpen ? null : m.id)}
+                                  className={`ml-auto flex items-center gap-1 text-[10px] font-bold border rounded px-1.5 py-0.5 transition-colors ${isOpen ? 'bg-slate-100 text-slate-500 border-slate-200' : 'text-blue-600 border-blue-200 hover:border-blue-400 hover:text-blue-800'}`}
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  {isOpen ? 'Cerrar' : 'Cambiar horario'}
+                                </button>
+                              </div>
+
+                              {isOpen && (
+                                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 space-y-2.5">
+                                  <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Nuevo inicio — toca para aplicar</p>
+
+                                  {/* Relative offsets */}
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {[
+                                      { label: 'Ahora',   preset: 'now'       },
+                                      { label: '+30 min', preset: 30 * 60_000  },
+                                      { label: '+1 h',    preset: 60 * 60_000  },
+                                      { label: '+2 h',    preset: 2 * 3600_000 },
+                                      { label: '+4 h',    preset: 4 * 3600_000 },
+                                    ].map(({ label, preset }) => (
+                                      <button
+                                        key={label}
+                                        onClick={() => applyPreset(preset as any)}
+                                        disabled={isBusy}
+                                        className="flex items-center gap-1 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                      >
+                                        {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Clock className="w-3 h-3" />}
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  {/* Shift starts */}
+                                  <div className="flex gap-1.5">
+                                    {[
+                                      { label: '🌅 Turno Mañana  07:00',  preset: 'shift07' },
+                                      { label: '🌆 Turno Tarde   15:00',  preset: 'shift15' },
+                                      { label: '🌙 Turno Noche   23:00',  preset: 'shift23' },
+                                    ].map(({ label, preset }) => (
+                                      <button
+                                        key={preset}
+                                        onClick={() => applyPreset(preset as any)}
+                                        disabled={isBusy}
+                                        className="flex-1 bg-white border border-slate-200 hover:border-orange-300 hover:bg-orange-50 text-slate-600 hover:text-orange-700 text-[10px] font-bold px-2 py-1.5 rounded-lg transition-colors disabled:opacity-50 text-center leading-tight"
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

@@ -261,7 +261,6 @@ export default function DoctorPage() {
                     <Pill className="w-3.5 h-3.5 text-white" />
                   </div>
                   <h3 className="font-black text-slate-900">Medicación activa</h3>
-                  <span className="ml-auto text-[10px] bg-orange-100 text-orange-700 font-black px-2 py-0.5 rounded-full">SYS-RF1</span>
                 </div>
 
                 {loadingMeds ? (
