@@ -21,10 +21,17 @@ interface ScheduleItem {
   status: 'completed' | 'delayed' | 'pending';
   patientId: string;
   patientName: string;
+  assignedNurseId: string | null;
   room: string | null;
   title: string;
   details: string;
   metadata?: Record<string, unknown>;
+}
+
+interface NurseOption {
+  id: string;
+  name: string;
+  role: string;
 }
 
 export default function NurseShiftSchedulePage() {
@@ -36,15 +43,29 @@ export default function NurseShiftSchedulePage() {
   });
   const [selectedShift, setSelectedShift] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  // SYS-RF5: '' = todas, 'me' = mis tareas (enfermero actual), o uuid de enfermero
+  const [nurseFilter, setNurseFilter] = useState<string>(user?.role === 'NURSE' ? 'me' : '');
 
   const shiftKey = selectedShift as 'morning' | 'afternoon' | 'night' | undefined;
 
+  const { data: nurses = [] } = useQuery({
+    queryKey: ['nurses'],
+    queryFn: () => api.get<NurseOption[]>('/users/nurses'),
+    enabled: user?.role === 'DOCTOR',
+  });
+
+  const effectiveNurseId =
+    nurseFilter === 'me'
+      ? user?.id ?? ''
+      : nurseFilter;
+
   const { data: scheduleItems = [], isLoading } = useQuery({
-    queryKey: ['schedule', selectedDate, selectedShift],
+    queryKey: ['schedule', selectedDate, selectedShift, effectiveNurseId],
     queryFn: () => {
       const params = new URLSearchParams();
       params.set('date', selectedDate);
       if (shiftKey) params.set('shift', shiftKey);
+      if (effectiveNurseId) params.set('nurseId', effectiveNurseId);
       return api.get<ScheduleItem[]>(`/schedule?${params.toString()}`);
     },
   });
@@ -53,7 +74,7 @@ export default function NurseShiftSchedulePage() {
     mutationFn: (scheduleId: string) =>
       api.post(`/medications/schedules/${scheduleId}/administer`, {}),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['schedule', selectedDate, selectedShift] });
+      qc.invalidateQueries({ queryKey: ['schedule'] });
       qc.invalidateQueries({ queryKey: ['medications'] });
     },
   });
@@ -130,8 +151,31 @@ export default function NurseShiftSchedulePage() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             <Filter className="w-4 h-4 text-slate-400" />
+            {/* SYS-RF5: filtro por enfermero */}
+            {user?.role === 'NURSE' && (
+              <select
+                value={nurseFilter}
+                onChange={(e) => setNurseFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20"
+              >
+                <option value="me">Mis tareas</option>
+                <option value="">Todas las tareas</option>
+              </select>
+            )}
+            {user?.role === 'DOCTOR' && (
+              <select
+                value={nurseFilter}
+                onChange={(e) => setNurseFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20 min-w-[180px]"
+              >
+                <option value="">Todos los enfermeros</option>
+                {nurses.map((n) => (
+                  <option key={n.id} value={n.id}>{n.name}</option>
+                ))}
+              </select>
+            )}
             <select
               value={selectedShift}
               onChange={(e) => setSelectedShift(e.target.value)}

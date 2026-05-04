@@ -14,6 +14,7 @@ import incidentRoutes from './routes/incidents.routes';
 import diagnosticTestRoutes from './routes/diagnosticTests.routes';
 import drugRoutes from './routes/drugs.routes';
 import scheduleRoutes from './routes/schedule.routes';
+import userRoutes from './routes/users.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
@@ -41,7 +42,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/tests', diagnosticTestRoutes);
 app.use('/api/drugs', drugRoutes);
-  app.use('/api/schedule', scheduleRoutes);
+app.use('/api/schedule', scheduleRoutes);
+app.use('/api/users', userRoutes);
 
 // Global error handler (must be last middleware)
 app.use(errorHandler);

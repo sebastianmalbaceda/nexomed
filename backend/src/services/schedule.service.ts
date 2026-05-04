@@ -62,10 +62,25 @@ export async function getScheduleItems(query: GetScheduleQuery) {
   const range = query.shift ? buildShiftRange(dayRange, query.shift) : dayRange;
   const now = new Date();
 
+  // SYS-RF5: el filtro nurseId limita las tareas a pacientes asignados a ese enfermero.
+  const patientFilter =
+    query.patientId || query.nurseId
+      ? {
+          ...(query.patientId ? { patientId: query.patientId } : {}),
+          ...(query.nurseId ? { patient: { assignedNurseId: query.nurseId } } : {}),
+        }
+      : undefined;
+
   const medicationSchedules = await prisma.medSchedule.findMany({
     where: {
       scheduledAt: { gte: range.start, lte: range.end },
-      medication: query.patientId ? { patientId: query.patientId } : undefined,
+      medication:
+        query.patientId || query.nurseId
+          ? {
+              ...(query.patientId ? { patientId: query.patientId } : {}),
+              ...(query.nurseId ? { patient: { assignedNurseId: query.nurseId } } : {}),
+            }
+          : undefined,
     },
     orderBy: { scheduledAt: 'asc' },
     include: {
@@ -75,6 +90,7 @@ export async function getScheduleItems(query: GetScheduleQuery) {
             select: {
               id: true,
               name: true,
+              assignedNurseId: true,
               bed: { select: { room: true, letter: true } },
             },
           },
@@ -87,7 +103,7 @@ export async function getScheduleItems(query: GetScheduleQuery) {
   const careRecords = await prisma.careRecord.findMany({
     where: {
       recordedAt: { gte: range.start, lte: range.end },
-      patientId: query.patientId,
+      ...(patientFilter ?? {}),
     },
     orderBy: { recordedAt: 'asc' },
     include: {
@@ -95,6 +111,7 @@ export async function getScheduleItems(query: GetScheduleQuery) {
         select: {
           id: true,
           name: true,
+          assignedNurseId: true,
           bed: { select: { room: true, letter: true } },
         },
       },
@@ -110,6 +127,7 @@ export async function getScheduleItems(query: GetScheduleQuery) {
     status: formatMedicationStatus(schedule.scheduledAt, schedule.administeredAt, now),
     patientId: schedule.medication.patient.id,
     patientName: schedule.medication.patient.name,
+    assignedNurseId: schedule.medication.patient.assignedNurseId,
     room: roomLabel(schedule.medication.patient.bed),
     title: schedule.medication.drugName,
     details: `${schedule.medication.dose} · ${schedule.medication.route} · cada ${schedule.medication.frequencyHrs}h`,
@@ -132,6 +150,7 @@ export async function getScheduleItems(query: GetScheduleQuery) {
     status: 'completed',
     patientId: record.patient.id,
     patientName: record.patient.name,
+    assignedNurseId: record.patient.assignedNurseId,
     room: roomLabel(record.patient.bed),
     title: CARE_TYPE_LABELS[record.type] ?? record.type,
     details: [record.value, record.unit, record.notes].filter(Boolean).join(' · '),

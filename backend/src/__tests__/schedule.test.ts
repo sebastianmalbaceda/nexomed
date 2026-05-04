@@ -19,7 +19,7 @@ const app = express();
 app.use(express.json());
 app.use('/api/schedule', scheduleRoutes);
 
-type AsyncListMock = jest.MockedFunction<() => Promise<unknown[]>>;
+type AsyncListMock = jest.MockedFunction<(args?: unknown) => Promise<unknown[]>>;
 
 const mockedPrisma = prisma as unknown as {
   medSchedule: { findMany: AsyncListMock };
@@ -117,6 +117,39 @@ describe('Schedule endpoint', () => {
     it('debe devolver 400 si el turno es inválido', async () => {
       const res = await request(app)
         .get('/api/schedule?shift=invalid')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+    });
+
+    // SYS-RF5: filtro por enfermero
+    it('debe propagar nurseId al filtro de Prisma (medication + careRecord)', async () => {
+      const nurseId = '11111111-1111-4111-8111-111111111111';
+
+      mockedPrisma.medSchedule.findMany.mockResolvedValue([]);
+      mockedPrisma.careRecord.findMany.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get(`/api/schedule?nurseId=${nurseId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+
+      const medCallArg = mockedPrisma.medSchedule.findMany.mock.calls[0]?.[0] as unknown as {
+        where: { medication?: { patient?: { assignedNurseId?: string } } };
+      };
+      expect(medCallArg.where.medication?.patient?.assignedNurseId).toBe(nurseId);
+
+      const careCallArg = mockedPrisma.careRecord.findMany.mock.calls[0]?.[0] as unknown as {
+        where: { patient?: { assignedNurseId?: string } };
+      };
+      expect(careCallArg.where.patient?.assignedNurseId).toBe(nurseId);
+    });
+
+    it('debe devolver 400 si nurseId no es uuid', async () => {
+      const res = await request(app)
+        .get('/api/schedule?nurseId=not-a-uuid')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(400);

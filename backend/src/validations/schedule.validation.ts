@@ -9,6 +9,7 @@ export const getScheduleQuerySchema = z.object({
     .optional(),
   shift: shiftSchema.optional(),
   patientId: z.string().uuid('ID de paciente inválido').optional(),
+  nurseId: z.string().uuid('ID de enfermero inválido').optional(),
 });
 
 export type GetScheduleQuery = z.infer<typeof getScheduleQuerySchema>;

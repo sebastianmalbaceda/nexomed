@@ -24,6 +24,10 @@ const router = Router();
  *         name: patientId
  *         schema: { type: string, format: uuid }
  *         description: Filtra por paciente.
+ *       - in: query
+ *         name: nurseId
+ *         schema: { type: string, format: uuid }
+ *         description: Filtra por enfermero asignado al paciente (SYS-RF5).
  *     responses:
  *       200:
  *         description: Lista agregada de eventos clínicos del cronograma

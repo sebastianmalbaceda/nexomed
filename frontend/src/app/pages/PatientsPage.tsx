@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check, LogOut, HeartPulse } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { PatientSchedule } from '@/components/hospital/PatientSchedule';
 import type { Patient, Medication, CareRecord, VitalSigns, Bed } from '@/lib/types';
 
 // Computed once at module load — avoids impure Date.now() calls during render
@@ -289,6 +290,9 @@ export default function PatientsPage() {
             </div>
           </div>
         )}
+
+        {/* SYS-RF6: cronograma de tareas del paciente */}
+        <PatientSchedule patientId={selectedPatient.id} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="bg-card border border-border rounded-xl p-5">
