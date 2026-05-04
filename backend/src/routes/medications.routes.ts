@@ -114,7 +114,7 @@ router.put('/:id/deactivate', authenticate, authorize('DOCTOR'), deactivateMedic
  *       404:
  *         description: Medicación no encontrada
  */
-router.put('/:id/schedule', authenticate, authorize('DOCTOR'), updateMedicationSchedule);
+router.put('/:id/schedule', authenticate, authorize('DOCTOR', 'NURSE'), updateMedicationSchedule);
 
 /**
  * @swagger
