@@ -131,6 +131,7 @@ export interface Incident {
 }
 
 export type DiagnosticTestType = 'LAB' | 'IMAGING';
+export type DiagnosticTestStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
 
 export interface DiagnosticTest {
   id: string;
@@ -141,6 +142,7 @@ export interface DiagnosticTest {
   scheduledAt: string;
   status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   result: string | null;
+  status: DiagnosticTestStatus;
   requestedBy: string;
 }
 

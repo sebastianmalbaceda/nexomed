@@ -3,25 +3,28 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id                    String           @id @default(uuid())
-  email                 String           @unique
-  passwordHash          String
-  role                  Role
-  name                  String
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  recordedCareRecords   CareRecord[]     @relation("RecordedBy")
-  requestedTests        DiagnosticTest[] @relation("RequestedBy")
-  reportedIncidents     Incident[]       @relation("ReportedBy")
-  administeredSchedules MedSchedule[]    @relation("AdministeredBy")
-  prescribedMeds        Medication[]     @relation("PrescribedBy")
-  notifications         Notification[]
-  assignedPatients      Patient[]        @relation("AssignedNurse")
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  role         String         // NURSE, DOCTOR, TCAE
+  name         String
+  shift        String?        // morning, afternoon, night (solo para NURSE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  notifications    Notification[]
+  prescribedMeds  Medication[]    @relation("PrescribedBy")
+  administeredSchedules MedSchedule[] @relation("AdministeredBy")
+  recordedCareRecords   CareRecord[]   @relation("RecordedBy")
+  reportedIncidents     Incident[]     @relation("ReportedBy")
+  requestedTests       DiagnosticTest[] @relation("RequestedBy")
+  reviewedTests        DiagnosticTest[] @relation("ReviewedBy")
+  assignedPatients    Patient[]        @relation("AssignedNurse")
 }
 
 model Patient {
@@ -29,7 +32,7 @@ model Patient {
   name                 String
   dob                  DateTime
   diagnosis            String
-  allergies            String[]
+  allergies            String?          // Comma-separated for SQLite compatibility
   admissionDate        DateTime         @default(now())
   bedId                String?          @unique
   dietRestriction      String?
@@ -39,7 +42,7 @@ model Patient {
   dischargeDate        DateTime?
   discharged           Boolean          @default(false)
   surnames             String?
-  status               PatientStatus    @default(ESTABLE)
+  status               String           @default("ESTABLE") // ESTABLE, MODERADO, CRITICO, OBSERVACION
   assignedNurseId      String?
   assignedNurse        User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
   careRecords          CareRecord[]
@@ -102,15 +105,17 @@ model CareRecord {
 }
 
 model Notification {
-  id               String   @id @default(uuid())
+  id               String          @id @default(uuid())
   userId           String
   type             String
   message          String
   relatedPatientId String?
-  read             Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  patient          Patient? @relation(fields: [relatedPatientId], references: [id])
-  user             User     @relation(fields: [userId], references: [id])
+  relatedTestId    String?
+  read             Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  patient          Patient?        @relation(fields: [relatedPatientId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+  relatedTest      DiagnosticTest? @relation(fields: [relatedTestId], references: [id])
 }
 
 model Incident {
@@ -125,28 +130,20 @@ model Incident {
 }
 
 model DiagnosticTest {
-  id            String   @id @default(uuid())
+  id            String           @id @default(uuid())
+  patient       Patient          @relation(fields: [patientId], references: [id])
   patientId     String
   type          String
   name          String
   scheduledAt   DateTime
   result        String?
+  status        String           @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, COMPLETED
+  requestedBy   User            @relation("RequestedBy", fields: [requestedById], references: [id])
   requestedById String
-  createdAt     DateTime @default(now())
-  status        String   @default("PENDING")
-  patient       Patient  @relation(fields: [patientId], references: [id])
-  requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id])
+  reviewedBy   User?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedById  String?
+  createdAt     DateTime         @default(now())
+  notifications Notification[]
 }
 
-enum PatientStatus {
-  ESTABLE
-  MODERADO
-  CRITICO
-  OBSERVACION
-}
-
-enum Role {
-  NURSE
-  DOCTOR
-  TCAE
-}
+// Enums removed for SQLite compatibility - use String fields with validation
