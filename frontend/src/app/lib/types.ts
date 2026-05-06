@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  shift?: 'morning' | 'afternoon' | 'night' | null;
   createdAt: string;
 }
 
@@ -21,14 +22,14 @@ export interface Patient {
   dob: string;
   diagnosis: string;
   status: PatientStatus;
-  allergies: string[];
+  allergies: string | null; // Comma-separated for SQLite compatibility
   dietRestriction: string | null;
   isolationRestriction: string | null;
   mobilityRestriction: string | null;
   /** ISO date string */
   admissionDate: string;
   discharged: boolean;
-  /** ISO date string or null */
+  /** ISO date string */
   dischargeDate: string | null;
   bedId: string | null;
   bed?: Bed;
@@ -94,7 +95,9 @@ export type NotificationType =
   | 'MED_CHANGE'
   | 'MED_NEW'
   | 'MED_REMOVED'
-  | 'INCIDENT_NEW';
+  | 'INCIDENT_NEW'
+  | 'TEST_REQUESTED'
+  | 'TEST_REVIEWED';
 
 export interface Notification {
   id: string;
@@ -102,6 +105,7 @@ export interface Notification {
   type: NotificationType;
   message: string;
   relatedPatientId: string | null;
+  relatedTestId: string | null;
   read: boolean;
   /** ISO date string */
   createdAt: string;
@@ -131,7 +135,7 @@ export interface Incident {
 }
 
 export type DiagnosticTestType = 'LAB' | 'IMAGING';
-export type DiagnosticTestStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+export type DiagnosticTestStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
 
 export interface DiagnosticTest {
   id: string;
@@ -140,9 +144,8 @@ export interface DiagnosticTest {
   name: string;
   /** ISO date string */
   scheduledAt: string;
-  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';
-  result: string | null;
   status: DiagnosticTestStatus;
+  result: string | null;
   requestedBy: string;
 }
 

@@ -35,9 +35,12 @@ export const SEED_CREDENTIALS = [
 ] as const;
 
 export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
-  MED_NEW:     'Nueva medicación',
-  MED_CHANGE:  'Cambio de medicación',
-  MED_REMOVED: 'Medicación retirada',
+  MED_NEW:       'Nueva medicación',
+  MED_CHANGE:    'Cambio de medicación',
+  MED_REMOVED:   'Medicación retirada',
+  INCIDENT_NEW:  'Nueva incidencia',
+  TEST_REQUESTED: 'Prueba solicitada',
+  TEST_REVIEWED:  'Prueba revisada',
 };
 
 export const CARE_RECORD_TYPE_LABELS: Record<string, string> = {
