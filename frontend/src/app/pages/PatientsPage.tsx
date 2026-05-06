@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check, LogOut, HeartPulse } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import { PatientSchedule } from '@/components/hospital/PatientSchedule';
 import type { Patient, Medication, CareRecord, VitalSigns, Bed } from '@/lib/types';
 
@@ -139,7 +140,7 @@ export default function PatientsPage() {
         dob: patient.dob,
         diagnosis: '',
         status: patient.status ?? 'ESTABLE',
-        allergies: [...patient.allergies],
+        allergies: parseAllergies(patient.allergies),
       }));
     },
     onError: () => {
@@ -151,7 +152,10 @@ export default function PatientsPage() {
   const [createError, setCreateError] = useState('');
 
   const createPatientMutation = useMutation({
-    mutationFn: (data: typeof form) => api.post('/patients', data),
+    mutationFn: (data: typeof form) => api.post('/patients', {
+      ...data,
+      allergies: data.allergies.join(','), // Convert array to comma-separated string for backend
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setShowForm(false);
@@ -281,12 +285,12 @@ export default function PatientsPage() {
           </div>
         )}
 
-        {selectedPatient.allergies.length > 0 && (
+        {getAllergiesCount(selectedPatient.allergies) > 0 && (
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
             <div>
               <p className="text-sm font-medium text-destructive">Alergias</p>
-              <p className="text-sm text-destructive/80">{selectedPatient.allergies.join(', ')}</p>
+              <p className="text-sm text-destructive/80">{parseAllergies(selectedPatient.allergies).join(', ')}</p>
             </div>
           </div>
         )}
@@ -739,10 +743,10 @@ export default function PatientsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      {p.allergies.length > 0 ? (
+                      {getAllergiesCount(p.allergies) > 0 ? (
                         <span className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-medium">
                           <AlertCircle className="w-3 h-3" />
-                          {p.allergies.join(', ')}
+                          {parseAllergies(p.allergies).join(', ')}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-xs">Sin alergias</span>

@@ -5,6 +5,7 @@ import {
   FileWarning, Calendar, User, ChevronDown, Pill, ClipboardList
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Patient, Incident } from '@/lib/types';
 
 const statusConfig: Record<string, { label: string; dot: string }> = {
@@ -221,9 +222,9 @@ export default function IncidentsPage() {
             </div>
             <p className="text-slate-400 text-xs">{selectedPatient.diagnosis}</p>
           </div>
-          {selectedPatient.allergies.length > 0 && (
+          {getAllergiesCount(selectedPatient.allergies) > 0 && (
             <span className="text-xs bg-red-500 text-white font-black px-2 py-1 rounded-lg shrink-0">
-              🚫 {selectedPatient.allergies.join(', ')}
+              🚫 {parseAllergies(selectedPatient.allergies).join(', ')}
             </span>
           )}
         </div>

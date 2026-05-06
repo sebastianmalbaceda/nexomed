@@ -5,6 +5,7 @@ import {
   Pill, FileWarning,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Patient, CareRecord, Medication, Incident } from '@/lib/types';
 
 const statusConfig: Record<string, { label: string; dot: string }> = {
@@ -79,8 +80,8 @@ function getRestrictions(p: Patient): Restriction[] {
       res.push({ type: 'diet', label: 'Dieta hiposódica', detail: 'Reducción de sodio · Sin procesados', emoji: '🧂', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
     else if (/renal|riñ|nefr/.test(diag))
       res.push({ type: 'diet', label: 'Dieta hipoproteica', detail: 'Control de proteínas y potasio', emoji: '⚖️', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
-    else if (p.allergies.length > 0)
-      res.push({ type: 'diet', label: `Alergia: ${p.allergies[0]}`, detail: 'Verificar todos los ingredientes', emoji: '🚫', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
+    else if (getAllergiesCount(p.allergies) > 0)
+      res.push({ type: 'diet', label: `Alergia: ${parseAllergies(p.allergies)[0]}`, detail: 'Verificar todos los ingredientes', emoji: '🚫', classes: DIET_CLASSES, badgeColor: DIET_BADGE });
   }
 
   if (p.isolationRestriction) {
@@ -129,8 +130,8 @@ export default function TCAEPage() {
   const [showIncidentForm, setShowIncidentForm] = useState(false);
 
   const { data: patients = [], isLoading, isError } = useQuery({
-    queryKey: ['patients'],
-    queryFn: () => api.get<Patient[]>('/patients'),
+    queryKey: ['patients', 'assigned'],
+    queryFn: () => api.get<Patient[]>('/patients?assigned=true'),
   });
   const selected = patients.find((p) => p.id === selectedId) ?? null;
 
@@ -255,8 +256,8 @@ export default function TCAEPage() {
                         {restr.map((r) => (
                           <span key={r.type} className={`text-[10px] px-1.5 py-0.5 rounded border font-black ${r.classes}`}>{r.emoji}</span>
                         ))}
-                        {p.allergies.length > 0 && (
-                          <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded">🚫{p.allergies.length}</span>
+                        {getAllergiesCount(p.allergies) > 0 && (
+                          <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded">🚫{getAllergiesCount(p.allergies)}</span>
                         )}
                       </div>
                     </button>
@@ -291,9 +292,9 @@ export default function TCAEPage() {
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · {selected.diagnosis}
                     </p>
                   </div>
-                  {selected.allergies.length > 0 && (
+                  {getAllergiesCount(selected.allergies) > 0 && (
                     <span className="text-[10px] bg-red-500 text-white font-black px-2 py-1 rounded-lg shrink-0">
-                      🚫 {selected.allergies.join(', ')}
+                      🚫 {parseAllergies(selected.allergies).join(', ')}
                     </span>
                   )}
                 </div>

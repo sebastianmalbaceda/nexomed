@@ -5,6 +5,7 @@ import { History, Loader2, ChevronDown, Clock, Pill, Activity, FileText, User, T
 import { api } from '@/lib/api';
 import { CARE_RECORD_TYPE_LABELS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Patient, CareRecord, Medication, MedSchedule, DiagnosticTest } from '@/lib/types';
 
 const statusConfig: Record<string, { label: string; dot: string }> = {
@@ -146,8 +147,8 @@ export default function UnifiedHistoryPage() {
               { label: 'Cama', value: selectedPatient.bed ? `Hab. ${selectedPatient.bed.room}${selectedPatient.bed.letter}` : 'Sin asignar', color: '' },
               {
                 label: 'Alergias',
-                value: selectedPatient.allergies.length > 0 ? selectedPatient.allergies.join(', ') : 'Ninguna conocida',
-                color: selectedPatient.allergies.length > 0 ? 'text-red-600 font-black' : 'text-emerald-600',
+                value: getAllergiesCount(selectedPatient.allergies) > 0 ? parseAllergies(selectedPatient.allergies).join(', ') : 'Ninguna conocida',
+                color: getAllergiesCount(selectedPatient.allergies) > 0 ? 'text-red-600 font-black' : 'text-emerald-600',
               },
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -369,10 +370,8 @@ export default function UnifiedHistoryPage() {
                         </div>
                         <ul className="divide-y divide-slate-100">
                           {tests.map((t) => {
-                            const statusBadge = t.status === 'COMPLETED'
+                            const statusBadge = t.status === 'COMPLETED' || t.status === 'CANCELLED'
                               ? { bg: 'bg-emerald-500', label: 'REALIZADO' }
-                              : t.status === 'CANCELLED'
-                              ? { bg: 'bg-red-400', label: 'CANCELADO' }
                               : { bg: 'bg-amber-500', label: 'PENDIENTE' };
 
                             return (

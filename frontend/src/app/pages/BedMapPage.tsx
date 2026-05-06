@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Bed, Patient } from '@/lib/types';
 
 const getPatientEmoji = (dobString: string) => {
@@ -133,7 +134,7 @@ export default function BedMapPage() {
         dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         diagnosis: '',
         status: patient.status ?? 'ESTABLE',
-        allergies: patient.allergies.join(', '),
+        allergies: patient.allergies ? patient.allergies : '',
       }));
     },
     onError: () => {
@@ -364,7 +365,7 @@ export default function BedMapPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
-                            {patient.allergies.length > 0 && (
+                            {patient.allergies && getAllergiesCount(patient.allergies) > 0 && (
                               <span className="text-[8px] font-bold text-red-500">🚫 ALERGIA</span>
                             )}
                             {isCritical && <span className="text-[8px] animate-bounce">⚠️</span>}
@@ -436,12 +437,12 @@ export default function BedMapPage() {
                   </div>
 
                   {/* Allergies */}
-                  <div className={`p-4 rounded-2xl border ${selectedBed.patient.allergies.length > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    <p className={`text-[10px] font-black uppercase mb-1 ${selectedBed.patient.allergies.length > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                  <div className={`p-4 rounded-2xl border ${getAllergiesCount(selectedBed.patient.allergies) > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <p className={`text-[10px] font-black uppercase mb-1 ${getAllergiesCount(selectedBed.patient.allergies) > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
                       🚫 Alergias
                     </p>
-                    <p className={`text-xs font-bold ${selectedBed.patient.allergies.length > 0 ? 'text-red-900' : 'text-emerald-900'}`}>
-                      {selectedBed.patient.allergies.join(', ') || 'Sin alergias conocidas'}
+                    <p className={`text-xs font-bold ${getAllergiesCount(selectedBed.patient.allergies) > 0 ? 'text-red-900' : 'text-emerald-900'}`}>
+                      {parseAllergies(selectedBed.patient.allergies).join(', ') || 'Sin alergias conocidas'}
                     </p>
                   </div>
 
