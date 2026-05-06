@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -7,58 +7,68 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos...');
 
-  const passwordHash = await bcrypt.hash('password123', 12);
+  const password = await bcrypt.hash('password123', 12);
 
-  // --- USUARIOS (upsert para idempotencia) ---
+  // --- USUARIOS ---
   console.log('Creating users...');
 
   const doctor = await prisma.user.upsert({
     where: { email: 'dr.garcia@nexomed.es' },
     update: { name: 'Dr. Antonio García' },
-    create: {
-      email: 'dr.garcia@nexomed.es',
-      passwordHash,
-      role: Role.DOCTOR,
-      name: 'Dr. Antonio García',
-    },
+    create: { email: 'dr.garcia@nexomed.es', password, role: 'DOCTOR', name: 'Dr. Antonio García' },
   });
 
-  const nurse1 = await prisma.user.upsert({
+  // Enfermeros — 2 por turno (mañana, tarde, noche)
+  const nurseMorning1 = await prisma.user.upsert({
     where: { email: 'enf.martinez@nexomed.es' },
-    update: { name: 'María Martínez' },
-    create: {
-      email: 'enf.martinez@nexomed.es',
-      passwordHash,
-      role: Role.NURSE,
-      name: 'María Martínez',
-    },
+    update: { name: 'María Martínez', shift: 'morning' },
+    create: { email: 'enf.martinez@nexomed.es', password, role: 'NURSE', name: 'María Martínez', shift: 'morning' },
   });
 
-  const nurse2 = await prisma.user.upsert({
-    where: { email: 'enf.lopez@nexomed.es' },
-    update: { name: 'Carlos López' },
-    create: {
-      email: 'enf.lopez@nexomed.es',
-      passwordHash,
-      role: Role.NURSE,
-      name: 'Carlos López',
-    },
+  const nurseMorning2 = await prisma.user.upsert({
+    where: { email: 'enf.gomez@nexomed.es' },
+    update: { name: 'Pedro Gómez', shift: 'morning' },
+    create: { email: 'enf.gomez@nexomed.es', password, role: 'NURSE', name: 'Pedro Gómez', shift: 'morning' },
   });
+
+  const nurseAfternoon1 = await prisma.user.upsert({
+    where: { email: 'enf.lopez@nexomed.es' },
+    update: { name: 'Carlos López', shift: 'afternoon' },
+    create: { email: 'enf.lopez@nexomed.es', password, role: 'NURSE', name: 'Carlos López', shift: 'afternoon' },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'enf.vera@nexomed.es' },
+    update: { name: 'Sofía Vera', shift: 'afternoon' },
+    create: { email: 'enf.vera@nexomed.es', password, role: 'NURSE', name: 'Sofía Vera', shift: 'afternoon' },
+  });
+
+  const nurseNight1 = await prisma.user.upsert({
+    where: { email: 'enf.ruiz@nexomed.es' },
+    update: { name: 'Ana Ruiz', shift: 'night' },
+    create: { email: 'enf.ruiz@nexomed.es', password, role: 'NURSE', name: 'Ana Ruiz', shift: 'night' },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'enf.ramos@nexomed.es' },
+    update: { name: 'Miguel Ramos', shift: 'night' },
+    create: { email: 'enf.ramos@nexomed.es', password, role: 'NURSE', name: 'Miguel Ramos', shift: 'night' },
+  });
+
+  // Eliminar nurses que ya no existen (renombrados)
+  await prisma.user.deleteMany({
+    where: { email: { in: ['enf.noche@nexomed.es', 'enf.extra@nexomed.es'] } },
+  }).catch(() => { /* puede que no existan */ });
 
   await prisma.user.upsert({
     where: { email: 'tcae.sanchez@nexomed.es' },
     update: { name: 'Laura Sánchez' },
-    create: {
-      email: 'tcae.sanchez@nexomed.es',
-      passwordHash,
-      role: Role.TCAE,
-      name: 'Laura Sánchez',
-    },
+    create: { email: 'tcae.sanchez@nexomed.es', password, role: 'TCAE', name: 'Laura Sánchez' },
   });
 
-  console.log('✅ Users ready (4).');
+  console.log('✅ Usuarios listos (8): 1 doctor, 6 enfermeros, 1 TCAE.');
 
-  // --- CAMAS (upsert para idempotencia) ---
+  // --- CAMAS ---
   console.log('Creating beds...');
 
   const bedConfigs = [
@@ -79,33 +89,27 @@ async function main() {
   const beds = [];
   for (const config of bedConfigs) {
     const bed = await prisma.bed.upsert({
-      where: {
-        room_letter: { room: config.room, letter: config.letter }
-      },
+      where: { room_letter: { room: config.room, letter: config.letter } },
       update: {},
       create: { room: config.room, letter: config.letter, floor: 1 },
     });
     beds.push(bed);
   }
 
-  console.log(`✅ Beds ready (${beds.length}).`);
+  console.log(`✅ Camas listas (${beds.length}).`);
 
-  // --- PACIENTES ---
+  // --- PACIENTES con enfermera asignada ---
   console.log('Creating patients...');
 
-  // Primero liberar camas que tienen pacientes que ya no queremos
+  // Liberar camas con pacientes antiguos no deseados
   await prisma.patient.updateMany({
     where: {
       bedId: { in: beds.map(b => b.id) },
       NOT: {
         name: {
           in: [
-            'Juan Pérez Ruiz',
-            'Ana Martínez Gil',
-            'Pedro Sánchez Torres',
-            'Carmen Delgado Vela',
-            'Luis Ramírez Ortega',
-            'Isabel Fuentes Moreno',
+            'Juan Pérez Ruiz', 'Ana Martínez Gil', 'Pedro Sánchez Torres',
+            'Carmen Delgado Vela', 'Luis Ramírez Ortega', 'Isabel Fuentes Moreno',
           ]
         }
       }
@@ -118,51 +122,55 @@ async function main() {
       name: 'Juan Pérez Ruiz',
       dob: new Date('1958-03-15'),
       diagnosis: 'Neumonía adquirida en comunidad',
-      allergies: ['Penicilina', 'Sulfamidas'],
+      allergies: 'Penicilina,Sulfamidas',
       bedIndex: 0,
+      nurseId: nurseMorning1.id,
     },
     {
       name: 'Ana Martínez Gil',
       dob: new Date('1972-07-22'),
-      diagnosis: 'Fratura de cadera izquierda',
-      allergies: [],
+      diagnosis: 'Fractura de cadera izquierda',
+      allergies: '',
       bedIndex: 1,
+      nurseId: nurseMorning1.id,
     },
     {
       name: 'Pedro Sánchez Torres',
       dob: new Date('1965-11-08'),
       diagnosis: 'IAM crítico - Stent coronario',
-      allergies: ['Latex'],
+      allergies: 'Latex',
       bedIndex: 2,
+      nurseId: nurseAfternoon1.id,
     },
     {
       name: 'Carmen Delgado Vela',
       dob: new Date('1980-01-30'),
       diagnosis: 'Apendicitis aguda - Postoperatorio',
-      allergies: ['Codeína'],
+      allergies: 'Codeína',
       bedIndex: 3,
+      nurseId: nurseAfternoon1.id,
     },
     {
       name: 'Luis Ramírez Ortega',
       dob: new Date('1955-09-14'),
       diagnosis: 'EPOC reagudizado',
-      allergies: ['Amoxicilina', 'Ibuprofeno'],
+      allergies: 'Amoxicilina,Ibuprofeno',
       bedIndex: 4,
+      nurseId: nurseMorning2.id,
     },
     {
       name: 'Isabel Fuentes Moreno',
       dob: new Date('1990-04-03'),
       diagnosis: 'Cetoacidosis diabética - Alta',
-      allergies: ['Metformin'],
+      allergies: 'Metformin',
       bedIndex: 5,
+      nurseId: nurseNight1.id,
     },
   ];
 
   const patients = [];
   for (const pData of patientData) {
-    const existing = await prisma.patient.findFirst({
-      where: { name: pData.name }
-    });
+    const existing = await prisma.patient.findFirst({ where: { name: pData.name } });
 
     if (existing) {
       await prisma.patient.update({
@@ -170,25 +178,27 @@ async function main() {
         data: {
           bedId: beds[pData.bedIndex].id,
           diagnosis: pData.diagnosis,
-          allergies: pData.allergies,
+          allergies: pData.allergies || null,
+          assignedNurseId: pData.nurseId,
         }
       });
-      patients.push({ ...existing, bedId: beds[pData.bedIndex].id });
+      patients.push({ ...existing, bedId: beds[pData.bedIndex].id, assignedNurseId: pData.nurseId });
     } else {
       const patient = await prisma.patient.create({
         data: {
           name: pData.name,
           dob: pData.dob,
           diagnosis: pData.diagnosis,
-          allergies: pData.allergies,
+          allergies: pData.allergies || null,
           bedId: beds[pData.bedIndex].id,
+          assignedNurseId: pData.nurseId,
         },
       });
       patients.push(patient);
     }
   }
 
-  console.log(`✅ Patients ready (${patients.length}).`);
+  console.log(`✅ Pacientes listos (${patients.length}) con enfermera asignada.`);
 
   // --- MEDICACIONES ---
   console.log('Creating medications...');
@@ -269,7 +279,7 @@ async function main() {
     });
   }
 
-  console.log('✅ Medications ready.');
+  console.log('✅ Medicaciones listas.');
 
   // --- REGISTROS DE CUIDADOS ---
   const existingCare = await prisma.careRecord.count();
@@ -281,7 +291,7 @@ async function main() {
         value: '120/80',
         unit: 'mmHg',
         notes: 'PA estable',
-        recordedById: nurse1.id,
+        recordedById: nurseMorning1.id,
       },
     });
 
@@ -292,10 +302,10 @@ async function main() {
         value: '97',
         unit: 'SpO2%',
         notes: 'Oximetría correcta con gafas nasales a 2L',
-        recordedById: nurse2.id,
+        recordedById: nurseAfternoon1.id,
       },
     });
-    console.log('✅ Care records created (2).');
+    console.log('✅ Registros de cuidados creados (2).');
   }
 
   // --- NOTIFICACIONES ---
@@ -303,27 +313,45 @@ async function main() {
   if (existingNotifs === 0) {
     await prisma.notification.create({
       data: {
-        userId: nurse1.id,
+        userId: nurseMorning1.id,
         type: 'MED_NEW',
-        message: 'Dr. García ha prescrito Enoxaparina 40mg para el paciente Pedro Sánchez Torres',
+        message: 'Dr. García ha prescrito Enoxaparina 40mg para Pedro Sánchez Torres',
         relatedPatientId: patients[2].id,
       },
     });
-    console.log('✅ Notifications created (1).');
+    console.log('✅ Notificaciones creadas (1).');
   }
 
   console.log('');
-  console.log('🎉 Seed completed successfully!');
+  console.log('🎉 Seed completado con éxito!');
   console.log('');
-  console.log('📝 Credenciales de prueba:');
-  console.log('  Contraseña: password123');
+  console.log('📝 Credenciales (contraseña: password123 para todos)');
   console.log('');
-  console.log('  👨‍⚕️  Doctor:    dr.garcia@nexomed.es');
-  console.log('  👩‍⚕️  Enfermera: enf.martinez@nexomed.es');
-  console.log('  👨‍⚕️  Enfermero: enf.lopez@nexomed.es');
-  console.log('  👩‍⚕️  TCAE:      tcae.sanchez@nexomed.es');
+  console.log('  👨‍⚕️  DOCTOR');
+  console.log('      Dr. Antonio García     →  dr.garcia@nexomed.es');
   console.log('');
-  console.log(`🏥 ${patients.length} pacientes en ${beds.length} camas`);
+  console.log('  👩‍⚕️  ENFERMEROS — MAÑANA (07:00-15:00)');
+  console.log('      María Martínez         →  enf.martinez@nexomed.es');
+  console.log('      Pedro Gómez            →  enf.gomez@nexomed.es');
+  console.log('');
+  console.log('  👩‍⚕️  ENFERMEROS — TARDE (15:00-23:00)');
+  console.log('      Carlos López           →  enf.lopez@nexomed.es');
+  console.log('      Sofía Vera             →  enf.vera@nexomed.es');
+  console.log('');
+  console.log('  👩‍⚕️  ENFERMEROS — NOCHE (23:00-07:00)');
+  console.log('      Ana Ruiz               →  enf.ruiz@nexomed.es');
+  console.log('      Miguel Ramos           →  enf.ramos@nexomed.es');
+  console.log('');
+  console.log('  🏥  TCAE');
+  console.log('      Laura Sánchez          →  tcae.sanchez@nexomed.es');
+  console.log('');
+  console.log(`  📊  ${patients.length} pacientes en ${beds.length} camas`);
+  console.log('      Juan Pérez Ruiz        →  María Martínez (mañana)');
+  console.log('      Ana Martínez Gil       →  María Martínez (mañana)');
+  console.log('      Pedro Sánchez Torres   →  Carlos López (tarde)');
+  console.log('      Carmen Delgado Vela    →  Carlos López (tarde)');
+  console.log('      Luis Ramírez Ortega    →  Pedro Gómez (mañana)');
+  console.log('      Isabel Fuentes Moreno  →  Ana Ruiz (noche)');
 }
 
 main()
