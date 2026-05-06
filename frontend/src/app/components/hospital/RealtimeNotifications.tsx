@@ -2,13 +2,24 @@
 
 import { X, AlertCircle, Info, CheckCircle, Bell } from 'lucide-react';
 
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  senderName?: string;
+}
+
 interface RealtimeNotificationsProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function RealtimeNotifications({ isOpen, onClose }: RealtimeNotificationsProps) {
-  const notifications = [
+  const notifications: Notification[] = [
     {
       id: 1,
       type: 'alert',
@@ -78,6 +89,9 @@ export function RealtimeNotifications({ isOpen, onClose }: RealtimeNotifications
                   <div className="flex-1 min-w-0">
                     <h4 className="text-foreground font-medium mb-1">{notification.title}</h4>
                     <p className="text-muted-foreground text-sm mb-2">{notification.message}</p>
+                    {notification.senderName && (
+                      <p className="text-xs text-muted-foreground">Por: {notification.senderName}</p>
+                    )}
                     <span className="text-xs text-muted-foreground">{notification.time}</span>
                   </div>
                 </div>

@@ -99,10 +99,8 @@ export function PatientSchedule({ patientId }: { patientId: string }) {
       id: `test-${t.id}`,
       source: 'DIAGNOSTIC_TEST' as const,
       timestamp: t.scheduledAt,
-      status: (t.status === 'COMPLETED'
+      status: (t.status === 'COMPLETED' || t.status === 'CANCELLED'
         ? 'completed'
-        : t.status === 'CANCELLED'
-        ? 'cancelled'
         : new Date(t.scheduledAt).getTime() < Date.now()
         ? 'delayed'
         : 'pending'),
