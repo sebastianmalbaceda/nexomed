@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   BedDouble,
@@ -6,7 +6,6 @@ import {
   TestTube,
   History,
   Activity,
-  LogOut,
   Building2,
   ClipboardList,
   Stethoscope,
@@ -15,7 +14,6 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { ROLE_LABELS } from '@/lib/constants';
 import type { Role } from '@/lib/types';
 
 interface NavItem {
@@ -40,16 +38,10 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, clearAuth } = useAuthStore();
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   const role = user?.role ?? 'NURSE';
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
-
-  const handleLogout = () => {
-    clearAuth();
-    navigate('/login', { replace: true });
-  };
 
   return (
     <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full shrink-0">
@@ -95,32 +87,14 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* User info + hospital info */}
-      <div className="p-4 border-t border-sidebar-border space-y-3">
+      {/* Hospital info */}
+      <div className="p-4 border-t border-sidebar-border">
         <div className="bg-sidebar-accent rounded-lg p-3 space-y-1">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-primary shrink-0" />
             <span className="text-sm font-semibold text-sidebar-foreground">Planta Única</span>
           </div>
           <p className="text-xs text-sidebar-foreground/60 pl-6">12 hab. · 24 camas</p>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-sidebar-foreground truncate">
-              {user?.name ?? '—'}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60">
-              {ROLE_LABELS[role]}
-            </p>
-          </div>
-          <button
-            onClick={handleLogout}
-            title="Cerrar sesión"
-            className="p-2 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </aside>

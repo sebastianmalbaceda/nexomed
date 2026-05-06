@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Search, LogOut, User } from 'lucide-react';
+import { Bell, LogOut, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -20,7 +19,6 @@ export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
-  const [search, setSearch] = useState('');
 
   const shift = getCurrentShift();
   const pageTitle = ROUTE_TITLES[location.pathname] ?? 'NexoMed';
@@ -50,20 +48,8 @@ export function Header() {
         </span>
       </div>
 
-      {/* Right: search + bell + user */}
+      {/* Right: bell + user + logout */}
       <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="search"
-            placeholder="Buscar paciente..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-52"
-          />
-        </div>
-
         {/* Notification bell */}
         {(user?.role === 'NURSE' || user?.role === 'DOCTOR') && (
           <button
