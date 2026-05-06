@@ -5,6 +5,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Patient, Medication } from '@/lib/types';
 
 const FREQ_OPTIONS = [2, 4, 6, 8, 12, 24];
@@ -123,7 +124,7 @@ export default function DoctorPage() {
             <ul className="divide-y divide-slate-100">
               {patients.map((p) => {
                 const isSelected = selectedId === p.id;
-                const hasAllergy = p.allergies.length > 0;
+                const hasAllergy = getAllergiesCount(p.allergies) > 0;
                 return (
                   <li key={p.id}>
                     <button
@@ -139,7 +140,7 @@ export default function DoctorPage() {
                           <p className="text-xs text-slate-400 truncate mt-0.5">{p.diagnosis}</p>
                         </div>
                         {hasAllergy && (
-                          <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded shrink-0">🚫 {p.allergies.length}</span>
+                          <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded shrink-0">🚫 {getAllergiesCount(p.allergies)}</span>
                         )}
                       </div>
                       {p.bed && <p className="text-[10px] text-slate-400 font-bold mt-1">Hab. {p.bed.room}{p.bed.letter}</p>}
@@ -183,12 +184,12 @@ export default function DoctorPage() {
                   </button>
                 </div>
 
-                {selected.allergies.length > 0 && (
+                {getAllergiesCount(selected.allergies) > 0 && (
                   <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-red-700">Alergias</p>
-                      <p className="text-xs text-red-600">{selected.allergies.join(', ')}</p>
+                      <p className="text-xs text-red-600">{parseAllergies(selected.allergies).join(', ')}</p>
                     </div>
                   </div>
                 )}

@@ -6,16 +6,17 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import type { Patient, DiagnosticTest, DiagnosticTestType, DiagnosticTestStatus } from '@/lib/types';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
+import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
 
-const STATUS_LABELS: Record<DiagnosticTestStatus, string> = {
+const STATUS_LABELS: Record<string, string> = {
   REQUESTED: 'Solicitada',
   APPROVED: 'Aprobada',
   REJECTED: 'Rechazada',
   COMPLETED: 'Completada',
 };
 
-const STATUS_COLORS: Record<DiagnosticTestStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   REQUESTED: 'bg-amber-100 text-amber-700 border-amber-300',
   APPROVED: 'bg-blue-100 text-blue-700 border-blue-300',
   REJECTED: 'bg-red-100 text-red-700 border-red-300',
@@ -187,9 +188,9 @@ export default function DiagnosticTestsPage() {
             <p className="font-black text-white text-sm">{selectedPatient.name}</p>
             <p className="text-slate-400 text-xs">{selectedPatient.diagnosis}</p>
           </div>
-          {selectedPatient.allergies.length > 0 && (
+          {getAllergiesCount(selectedPatient.allergies) > 0 && (
             <span className="text-xs bg-red-500 text-white font-black px-2 py-1 rounded-lg shrink-0">
-              🚫 {selectedPatient.allergies.join(', ')}
+              🚫 {parseAllergies(selectedPatient.allergies).join(', ')}
             </span>
           )}
         </div>
