@@ -41,7 +41,12 @@ export default function NurseShiftSchedulePage() {
     const d = new Date();
     return d.toISOString().split('T')[0];
   });
-  const [selectedShift, setSelectedShift] = useState<string>('');
+  const [selectedShift, setSelectedShift] = useState<string>(() => {
+    const h = new Date().getHours();
+    if (h >= 7 && h < 15) return 'morning';
+    if (h >= 15 && h < 23) return 'afternoon';
+    return 'night';
+  });
   const [filterStatus, setFilterStatus] = useState<string>('');
   // SYS-RF5: '' = todas, 'me' = mis tareas (enfermero actual), o uuid de enfermero
   const [nurseFilter, setNurseFilter] = useState<string>(user?.role === 'NURSE' ? 'me' : '');
@@ -176,16 +181,22 @@ export default function NurseShiftSchedulePage() {
                 ))}
               </select>
             )}
-            <select
-              value={selectedShift}
-              onChange={(e) => setSelectedShift(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20"
-            >
-              <option value="">Todos los turnos</option>
-              <option value="morning">Mañana (7-15h)</option>
-              <option value="afternoon">Tarde (15-23h)</option>
-              <option value="night">Noche (23-7h)</option>
-            </select>
+            {user?.role === 'NURSE' ? (
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg">
+                {selectedShift === 'morning' ? '🌅 Turno Mañana' : selectedShift === 'afternoon' ? '🌆 Turno Tarde' : '🌙 Turno Noche'}
+              </span>
+            ) : (
+              <select
+                value={selectedShift}
+                onChange={(e) => setSelectedShift(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20"
+              >
+                <option value="">Todos los turnos</option>
+                <option value="morning">Mañana (7-15h)</option>
+                <option value="afternoon">Tarde (15-23h)</option>
+                <option value="night">Noche (23-7h)</option>
+              </select>
+            )}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
