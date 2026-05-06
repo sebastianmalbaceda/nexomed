@@ -17,7 +17,13 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
         patient: { select: { name: true } }
       }
     });
-    res.json(notifications);
+
+    // Add senderName from SSE events (if available in message)
+    const notificationsWithSender = notifications.map(n => ({
+      ...n,
+      senderName: n.message.includes('por ') ? n.message.split('por ')[1]?.trim() : undefined
+    }));
+    res.json(notificationsWithSender);
   } catch (error) {
     return handlePrismaError(error, res);
   }

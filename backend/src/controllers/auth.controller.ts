@@ -16,15 +16,15 @@ export const login = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, passwordHash: true, role: true, name: true }
+      select: { id: true, email: true, password: true, role: true, name: true }
     });
     if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET!,
       { expiresIn: '8h' }
     );
@@ -47,7 +47,7 @@ export const getMe = async (req: Request, res: Response) => {
   if (!token) return res.status(401).json({ error: 'No hay token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string; name: string };
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, name: true, email: true, role: true, createdAt: true }

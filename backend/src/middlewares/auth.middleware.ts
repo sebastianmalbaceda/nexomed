@@ -10,7 +10,7 @@ import jwt from 'jsonwebtoken';
 
 // Extendemos Request para añadirle el usuario
 export interface AuthRequest extends Request {
-  user?: { id: string; role: string };
+  user?: { id: string; role: string; name: string };
 }
 
 // Comprueba que el token JWT es válido
@@ -19,7 +19,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   if (!token) return res.status(401).json({ error: 'No hay token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string; name: string };
     req.user = decoded; // guardamos el usuario en la request
     next();             // dejamos pasar
   } catch {
