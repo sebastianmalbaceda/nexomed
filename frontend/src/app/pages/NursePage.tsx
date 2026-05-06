@@ -5,7 +5,9 @@ import {
   CheckCircle2, Activity, Bell, Clock, Pencil, X, Check,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 import { POLLING_INTERVAL_MS, NOTIFICATION_TYPE_LABELS } from '@/lib/constants';
+import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
 import type { Patient, Medication, CareRecord, Notification } from '@/lib/types';
 
 const CARE_TYPES = [
@@ -76,8 +78,6 @@ function toMin(hhmm: string): number {
   return h * 60 + (m || 0);
 }
 
-interface ScheduleOverride { startHour: number; freqHrs: number; }
-
 export default function NursePage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,14 +86,13 @@ export default function NursePage() {
   const [careNotes, setCareNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [scheduleOverrides, setScheduleOverrides] = useState<Record<string, ScheduleOverride>>({});
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [editStartHour, setEditStartHour] = useState(8);
-  const [editFreqHrs, setEditFreqHrs] = useState(8);
 
+  const userId = useAuthStore((s) => s.user?.id);
   const { data: patients = [], isLoading, isError } = useQuery({
-    queryKey: ['patients'],
-    queryFn: () => api.get<Patient[]>('/patients'),
+    queryKey: ['patients', 'nurse', userId],
+    queryFn: () => api.get<Patient[]>(`/patients?nurseId=${userId}`),
   });
   const selected = patients.find((p) => p.id === selectedId) ?? null;
 
@@ -137,17 +136,29 @@ export default function NursePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['medications', selectedId] });
     },
+    onError: (e: Error) => {
+      setErrorMsg(e.message);
+    },
   });
 
-  /** Bug fix: don't use %24 — stop before 24h so midnight isn't included */
+  const scheduleUpdateMutation = useMutation({
+    mutationFn: ({ medId, startHour }: { medId: string; startHour: number }) => {
+      const newStart = new Date();
+      newStart.setHours(startHour, 0, 0, 0);
+      return api.put(`/medications/${medId}/schedule`, { newStartTime: newStart.toISOString() });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medications', selectedId] });
+      setEditingMedId(null);
+      setSuccessMsg('Horario guardado correctamente');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    },
+    onError: (e: Error) => {
+      setErrorMsg(e.message);
+    },
+  });
+
   function getMedTimes(med: Medication): string[] {
-    const ov = scheduleOverrides[med.id];
-    if (ov) {
-      const times: string[] = [];
-      let h = ov.startHour;
-      while (h < 24) { times.push(`${String(h).padStart(2, '0')}:00`); h += ov.freqHrs; }
-      return times;
-    }
     return calcDoseTimes(med.startTime, med.frequencyHrs);
   }
 
@@ -214,7 +225,7 @@ export default function NursePage() {
               {patients.map((p) => {
                 const isSelected = selectedId === p.id;
                 const pNotifs = notifications.filter((n) => !n.read && n.relatedPatientId === p.id).length;
-                const hasAllergy = p.allergies.length > 0;
+                const hasAllergy = getAllergiesCount(p.allergies) > 0;
                 return (
                   <li key={p.id}>
                     <button
@@ -228,7 +239,7 @@ export default function NursePage() {
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {hasAllergy && (
-                            <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded">🚫 {p.allergies.length}</span>
+                            <span className="text-[10px] bg-red-500 text-white font-black px-1.5 py-0.5 rounded">🚫 {getAllergiesCount(p.allergies)}</span>
                           )}
                           {pNotifs > 0 && (
                             <span className="text-[10px] bg-amber-500 text-white font-black px-1.5 py-0.5 rounded">🔔 {pNotifs}</span>
@@ -290,13 +301,13 @@ export default function NursePage() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Diagnóstico</p>
                     <p className="text-sm font-medium text-slate-800">"{selected.diagnosis}"</p>
                   </div>
-                  {selected.allergies.length > 0 ? (
+                  {getAllergiesCount(selected.allergies) > 0 ? (
                     <div className="bg-red-50 border border-red-100 rounded-xl p-3">
                       <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" /> Alergias
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {selected.allergies.map((a) => (
+                        {parseAllergies(selected.allergies).map((a) => (
                           <span key={a} className="text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-full">{a}</span>
                         ))}
                       </div>
@@ -343,15 +354,13 @@ export default function NursePage() {
                                 </span>
                               </div>
                               <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                {m.dose} · {m.route} · cada {scheduleOverrides[m.id]?.freqHrs ?? m.frequencyHrs}h
+                                {m.dose} · {m.route} · cada {m.frequencyHrs}h
                               </p>
                             </div>
                             <button
                               onClick={() => {
                                 if (isEditing) { setEditingMedId(null); return; }
-                                const ov = scheduleOverrides[m.id];
-                                setEditStartHour(ov?.startHour ?? new Date(m.startTime).getHours());
-                                setEditFreqHrs(ov?.freqHrs ?? m.frequencyHrs);
+                                setEditStartHour(new Date(m.startTime).getHours());
                                 setEditingMedId(m.id);
                               }}
                               className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors shrink-0 font-bold"
@@ -361,13 +370,13 @@ export default function NursePage() {
                             </button>
                           </div>
 
-                          {/* ENF-RF2: Schedule editor */}
+                          {/* ENF-RF2: Schedule editor — solo cambio de hora */}
                           {isEditing && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
-                              <p className="text-xs font-black text-amber-800 uppercase tracking-wide mb-2">Cambiar horario — recálculo automático</p>
+                              <p className="text-xs font-black text-amber-800 uppercase tracking-wide mb-2">Cambiar hora de inicio</p>
                               <div className="flex gap-3 mb-2">
                                 <div className="flex-1">
-                                  <label className="block text-xs font-bold text-amber-700 mb-1">Hora inicio</label>
+                                  <label className="block text-xs font-bold text-amber-700 mb-1">Nueva hora de inicio</label>
                                   <select value={editStartHour} onChange={(e) => setEditStartHour(Number(e.target.value))}
                                     className="w-full bg-white border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 ring-amber-400/30">
                                     {Array.from({ length: 24 }, (_, i) => (
@@ -375,63 +384,81 @@ export default function NursePage() {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="flex-1">
-                                  <label className="block text-xs font-bold text-amber-700 mb-1">Frecuencia</label>
-                                  <select value={editFreqHrs} onChange={(e) => setEditFreqHrs(Number(e.target.value))}
-                                    className="w-full bg-white border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 ring-amber-400/30">
-                                    {[2,4,6,8,12,24].map((h) => <option key={h} value={h}>Cada {h}h</option>)}
-                                  </select>
-                                </div>
                               </div>
                               <p className="text-xs text-amber-700 font-medium mb-2">
-                                Horarios recalculados:{' '}
-                                {Array.from({ length: Math.floor((24 - editStartHour) / editFreqHrs) + 1 }, (_, i) => editStartHour + i * editFreqHrs)
+                                Horarios resultantes (cada {m.frequencyHrs}h):{' '}
+                                {Array.from({ length: Math.ceil((24 - editStartHour) / m.frequencyHrs) }, (_, i) => editStartHour + i * m.frequencyHrs)
                                   .filter(h => h < 24)
                                   .map(h => `${String(h).padStart(2,'0')}:00`)
                                   .join(' · ')}
                               </p>
                               <button
-                                onClick={() => { setScheduleOverrides((p) => ({ ...p, [m.id]: { startHour: editStartHour, freqHrs: editFreqHrs } })); setEditingMedId(null); }}
-                                className="flex items-center gap-1.5 bg-amber-500 text-white text-xs font-black px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors"
+                                onClick={() => scheduleUpdateMutation.mutate({ medId: m.id, startHour: editStartHour })}
+                                disabled={scheduleUpdateMutation.isPending}
+                                className="flex items-center gap-1.5 bg-amber-500 text-white text-xs font-black px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
                               >
-                                <Check className="w-3 h-3" /> Guardar horario
+                                {scheduleUpdateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                Guardar horario
                               </button>
                             </div>
                           )}
 
-                           {/* Dose time slots — fixed comparison using numeric minutes */}
-                           <div className="flex flex-wrap gap-2">
-                             {times.map((t) => {
-                               const done = administered.has(`${m.id}__${t}`);
-                               const isPast = toMin(t) <= nowMin;
-                               const schedule = (m.schedules || []).find(s => {
-                                 const dt = new Date(s.scheduledAt);
-                                 return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` === t;
-                               });
-                               const currentShift = getCurrentShift();
-                               const inShift = isTimeInShift(t, currentShift);
-                               return (
-                                 <button
-                                   key={t}
-                                   onClick={() => schedule && !done && inShift && administerMutation.mutate({ scheduleId: schedule.id })}
-                                   disabled={done || !inShift || administerMutation.isPending}
-                                   title={done ? 'Ya administrado' : !inShift ? 'Fuera de tu turno' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
-                                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-bold transition-all ${
-                                     done
-                                       ? 'bg-emerald-100 border-emerald-300 text-emerald-700 line-through opacity-60'
-                                       : !inShift
-                                       ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
-                                       : isPast
-                                       ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
-                                       : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
-                                   }`}
-                                 >
-                                   {done ? <CheckCircle2 className="w-3 h-3" /> : !inShift ? <Clock className="w-3 h-3" /> : (isPast || schedule?.administeredAt) ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                   {t}
-                                 </button>
-                               );
-                             })}
-                           </div>
+                           {/* Cronograma por turno */}
+                           {(() => {
+                             const currentShift = getCurrentShift();
+                             const SHIFTS = [
+                               { key: 'morning'   as const, label: '🌅 Mañana', color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+                               { key: 'afternoon' as const, label: '🌆 Tarde',  color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
+                               { key: 'night'     as const, label: '🌙 Noche',  color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+                             ];
+                             return (
+                               <div className="grid grid-cols-3 gap-2">
+                                 {SHIFTS.map(({ key, label, color, bg, border }) => {
+                                   const shiftTimes = times.filter(t => isTimeInShift(t, key));
+                                   const isActive = key === currentShift;
+                                   return (
+                                     <div key={key} className={`rounded-xl border p-2 ${isActive ? `${bg} ${border}` : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                                       <p className={`text-[10px] font-black uppercase tracking-wide mb-1.5 ${isActive ? color : 'text-slate-400'}`}>{label}</p>
+                                       {shiftTimes.length === 0 ? (
+                                         <p className="text-[10px] text-slate-300 italic">—</p>
+                                       ) : (
+                                         <div className="flex flex-col gap-1">
+                                           {shiftTimes.map(t => {
+                                             const done = administered.has(`${m.id}__${t}`);
+                                             const isPast = toMin(t) <= nowMin;
+                                             const schedule = (m.schedules || []).find(s => {
+                                               const dt = new Date(s.scheduledAt);
+                                               return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` === t;
+                                             });
+                                             return (
+                                               <button
+                                                 key={t}
+                                                 onClick={() => schedule && !done && isActive && administerMutation.mutate({ scheduleId: schedule.id })}
+                                                 disabled={done || !isActive || administerMutation.isPending}
+                                                 title={done ? 'Ya administrado' : !isActive ? 'Fuera de tu turno' : isPast ? 'Administrar (vencido)' : 'Marcar como administrado'}
+                                                 className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-bold w-full justify-center transition-all ${
+                                                   done
+                                                     ? 'bg-emerald-100 border-emerald-300 text-emerald-700 line-through'
+                                                     : !isActive
+                                                     ? 'bg-white border-slate-200 text-slate-300 cursor-not-allowed'
+                                                     : isPast
+                                                     ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
+                                                     : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+                                                 }`}
+                                               >
+                                                 {done ? <CheckCircle2 className="w-3 h-3 shrink-0" /> : <Clock className="w-3 h-3 shrink-0" />}
+                                                 {t}
+                                               </button>
+                                             );
+                                           })}
+                                         </div>
+                                       )}
+                                     </div>
+                                   );
+                                 })}
+                               </div>
+                             );
+                           })()}
                         </div>
                       );
                     })}
