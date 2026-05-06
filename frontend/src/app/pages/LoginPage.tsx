@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Loader2, ShieldPlus } from 'lucide-react';
+import { Mail, Lock, Loader2, ShieldPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { SEED_CREDENTIALS } from '@/lib/constants';
 import type { LoginResponse } from '@/lib/types';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-  const [selectedUser, setSelectedUser] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const loginMutation = useMutation({
     mutationFn: (data: { email: string; password: string }) =>
@@ -21,9 +21,11 @@ export default function LoginPage() {
     },
   });
 
-  const handleLogin = () => {
-    const creds = SEED_CREDENTIALS.find((c) => c.email === selectedUser);
-    if (creds) loginMutation.mutate({ email: creds.email, password: creds.password });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email && password) {
+      loginMutation.mutate({ email, password });
+    }
   };
 
   return (
@@ -40,49 +42,71 @@ export default function LoginPage() {
           Sistema de Gestión Clínica Hospitalaria
         </p>
 
-        <div className="w-full mb-4">
-          <label className="block font-semibold mb-1 text-gray-700 text-xs">
-            Seleccionar Usuario
-          </label>
-          <div className="relative flex items-center">
-            <User size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
-            <select
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-800 cursor-pointer outline-none font-medium appearance-none"
-            >
-              <option value="">-- Selecciona un usuario --</option>
-              {SEED_CREDENTIALS.map((c) => (
-                <option key={c.email} value={c.email}>{c.label}</option>
-              ))}
-            </select>
+        <form onSubmit={handleSubmit} className="w-full space-y-4 mb-6">
+          <div>
+            <label className="block font-semibold mb-1 text-gray-700 text-xs">
+              Correo electrónico
+            </label>
+            <div className="relative flex items-center">
+              <Mail size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="usuario@nexomed.es"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-800 outline-none font-medium"
+                required
+              />
+            </div>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleLogin}
-          disabled={!selectedUser || loginMutation.isPending}
-          className="w-full bg-black text-white py-3 rounded-lg text-sm font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 mb-6"
-        >
-          {loginMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-          <span>Iniciar Sesión</span>
-        </button>
+          <div>
+            <label className="block font-semibold mb-1 text-gray-700 text-xs">
+              Contraseña
+            </label>
+            <div className="relative flex items-center">
+              <Lock size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-800 outline-none font-medium"
+                required
+              />
+            </div>
+          </div>
+
+          {loginMutation.isError && (
+            <p className="text-sm text-red-500 text-center">
+              Credenciales incorrectas
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={!email || !password || loginMutation.isPending}
+            className="w-full bg-black text-white py-3 rounded-lg text-sm font-semibold border-none cursor-pointer flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+          >
+            {loginMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+            <span>Iniciar Sesión</span>
+          </button>
+        </form>
 
         <div className="w-full border-t border-gray-100 pt-4">
           <div className="flex gap-2 mb-1.5">
             <span className="text-sm">💡</span>
             <p className="m-0 text-xs text-gray-400">
-              <span className="text-gray-500 font-medium">Demo:</span> Selecciona usuario para acceder
+              <span className="text-gray-500 font-medium">Demo:</span> Usa las credenciales del seed
             </p>
           </div>
           <div className="flex gap-2 mb-1.5">
             <span className="text-sm">👨‍⚕️</span>
-            <p className="m-0 text-xs text-gray-400">1 Médico, 5 Enfermeros, 2 TCAE</p>
+            <p className="m-0 text-xs text-gray-400">dr.garcia@nexomed.es / password123</p>
           </div>
           <div className="flex gap-2">
-            <span className="text-sm">🏥</span>
-            <p className="m-0 text-xs text-gray-400">Planta única (101-112 A/B)</p>
+            <span className="text-sm">👩‍⚕️</span>
+            <p className="m-0 text-xs text-gray-400">enf.martinez@nexomed.es / password123</p>
           </div>
         </div>
       </div>
