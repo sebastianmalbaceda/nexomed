@@ -1,17 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, Loader2, CheckCheck } from 'lucide-react';
+import { Bell, BellOff, Loader2, CheckCheck, ThumbsUp, ThumbsDown, TestTube } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NOTIFICATION_TYPE_LABELS, POLLING_INTERVAL_MS } from '@/lib/constants';
+import { useAuthStore } from '@/store/authStore';
 import type { Notification } from '@/lib/types';
 
 const TYPE_COLORS: Record<string, string> = {
-  MED_NEW:     'bg-primary/10 text-primary border-primary/20',
-  MED_CHANGE:  'bg-chart-4/20 text-yellow-400 border-yellow-400/20',
-  MED_REMOVED: 'bg-destructive/10 text-destructive border-destructive/20',
+  MED_NEW:        'bg-blue-50 text-blue-700 border-blue-200',
+  MED_CHANGE:     'bg-amber-50 text-amber-700 border-amber-200',
+  MED_REMOVED:    'bg-red-50 text-red-700 border-red-200',
+  INCIDENT_NEW:   'bg-orange-50 text-orange-700 border-orange-200',
+  TEST_REQUESTED: 'bg-violet-50 text-violet-700 border-violet-200',
+  TEST_REVIEWED:  'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isDoctor = user?.role === 'DOCTOR';
 
   const { data: notifications = [], isLoading, isError } = useQuery({
     queryKey: ['notifications'],
@@ -20,17 +26,23 @@ export default function NotificationsPage() {
   });
 
   const markReadMutation = useMutation({
-    mutationFn: (id: string) =>
-      api.put<Notification>(`/notifications/${id}/read`, {}),
+    mutationFn: (id: string) => api.put<Notification>(`/notifications/${id}/read`, {}),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const testActionMutation = useMutation({
+    mutationFn: ({ testId, status, notifId }: { testId: string; status: string; notifId: string }) =>
+      api.put(`/tests/${testId}/status`, { status }).then(() =>
+        api.put(`/notifications/${notifId}/read`, {})
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['tests'] });
     },
   });
 
   const markAllRead = () => {
-    notifications
-      .filter((n) => !n.read)
-      .forEach((n) => markReadMutation.mutate(n.id));
+    notifications.filter((n) => !n.read).forEach((n) => markReadMutation.mutate(n.id));
   };
 
   const unread = notifications.filter((n) => !n.read).length;
@@ -79,50 +91,74 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <ul className="divide-y divide-border">
-            {notifications.map((n) => (
-              <li
-                key={n.id}
-                className={`px-5 py-4 flex items-start gap-4 transition-opacity ${n.read ? 'opacity-50' : ''}`}
-              >
-                <div className="mt-0.5 shrink-0">
-                  <Bell className="w-4 h-4 text-muted-foreground" />
-                </div>
+            {notifications.map((n) => {
+              const isTestRequest = n.type === 'TEST_REQUESTED' && isDoctor && !!n.relatedTestId && !n.read;
+              const isPending = testActionMutation.isPending && testActionMutation.variables?.notifId === n.id;
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                        TYPE_COLORS[n.type] ?? 'bg-muted text-muted-foreground border-border'
-                      }`}
-                    >
-                      {NOTIFICATION_TYPE_LABELS[n.type] ?? n.type}
-                    </span>
-                    {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+              return (
+                <li
+                  key={n.id}
+                  className={`px-5 py-4 flex items-start gap-4 transition-opacity ${n.read ? 'opacity-50' : ''}`}
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {n.type === 'TEST_REQUESTED' ? (
+                      <TestTube className="w-4 h-4 text-violet-500" />
+                    ) : (
+                      <Bell className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  <p className="text-sm text-foreground">{n.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(n.createdAt).toLocaleString('es-ES', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
 
-                {!n.read && (
-                  <button
-                    onClick={() => markReadMutation.mutate(n.id)}
-                    disabled={markReadMutation.isPending}
-                    className="text-xs text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-60"
-                  >
-                    Leída
-                  </button>
-                )}
-              </li>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${TYPE_COLORS[n.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                        {NOTIFICATION_TYPE_LABELS[n.type] ?? n.type}
+                      </span>
+                      {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                    </div>
+
+                    <p className="text-sm text-foreground">{n.message}</p>
+
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(n.createdAt).toLocaleString('es-ES', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </p>
+
+                    {/* Botones Aceptar / Rechazar para el doctor */}
+                    {isTestRequest && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => testActionMutation.mutate({ testId: n.relatedTestId!, status: 'APPROVED', notifId: n.id })}
+                          disabled={isPending}
+                          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ThumbsUp className="w-3 h-3" />}
+                          Aceptar
+                        </button>
+                        <button
+                          onClick={() => testActionMutation.mutate({ testId: n.relatedTestId!, status: 'REJECTED', notifId: n.id })}
+                          disabled={isPending}
+                          className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ThumbsDown className="w-3 h-3" />}
+                          Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {!n.read && !isTestRequest && (
+                    <button
+                      onClick={() => markReadMutation.mutate(n.id)}
+                      disabled={markReadMutation.isPending}
+                      className="text-xs text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-60"
+                    >
+                      Leída
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
