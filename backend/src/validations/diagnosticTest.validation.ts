@@ -19,6 +19,10 @@ export const updateDiagnosticTestSchema = z.object({
   status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional()
 });
 
+export const updateTestStatusSchema = z.object({
+  status: z.enum(['APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED'])
+});
+
 export type CreateDiagnosticTestInput = z.infer<typeof createDiagnosticTestSchema>;
 export type UpdateTestResultInput = z.infer<typeof updateTestResultSchema>;
 export type UpdateDiagnosticTestInput = z.infer<typeof updateDiagnosticTestSchema>;

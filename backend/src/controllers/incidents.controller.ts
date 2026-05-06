@@ -66,7 +66,8 @@ export const createIncident = async (req: AuthRequest, res: Response) => {
     await notifyNursesAboutIncident(
       patientId,
       'INCIDENT_NEW',
-      `${typeLabel} registrado para ${patient?.name ?? 'paciente'}: ${description}`
+      `${typeLabel} registrado para ${patient?.name ?? 'paciente'}: ${description}`,
+      req.user!.name
     );
 
     res.status(201).json(incident);

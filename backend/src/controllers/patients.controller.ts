@@ -1,5 +1,6 @@
 // src/controllers/patients.controller.ts
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPatientSchema, updatePatientSchema } from '../validations/patient.validation';
@@ -22,10 +23,20 @@ export const searchPatientByDni = async (req: AuthRequest, res: Response) => {
 };
 
 // GET /api/patients — lista pacientes activos (no dados de alta) con su cama
+// Query params:
+//   assigned=true → solo pacientes con enfermera asignada
+//   nurseId=XXX → pacientes asignados a esa enfermera (para que cada enfermera vea sus pacientes)
 export const getPatients = async (req: AuthRequest, res: Response) => {
+  const { assigned, nurseId } = req.query as { assigned?: string; nurseId?: string };
   try {
+    const where: Prisma.PatientWhereInput = { discharged: false };
+    if (nurseId) {
+      where.assignedNurseId = nurseId;
+    } else if (assigned === 'true') {
+      where.assignedNurseId = { not: null };
+    }
     const patients = await prisma.patient.findMany({
-      where: { discharged: false },
+      where,
       include: { bed: true }
     });
     res.json(patients);
@@ -63,10 +74,13 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: validation.error.issues[0].message });
   }
 
-  const {
-    dni, name, surnames, dob, diagnosis, status, allergies, bedId,
-    dietRestriction, isolationRestriction, mobilityRestriction,
-  } = validation.data;
+    const {
+      dni, name, surnames, dob, diagnosis, status, allergies, bedId,
+      dietRestriction, isolationRestriction, mobilityRestriction,
+    } = validation.data;
+
+    // Convert allergies to comma-separated string if needed
+    const allergiesValue = allergies ? (Array.isArray(allergies) ? allergies.join(',') : allergies) : null;
 
   try {
     if (dni) {
@@ -80,11 +94,12 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
         const patient = await prisma.patient.update({
           where: { id: existing.id },
           data: {
+            ...(dni !== undefined ? { dni } : {}),
             name,
-            surnames: surnames ?? existing.surnames,
+            surnames: surnames ?? existing?.surnames,
             diagnosis,
-            status: status ?? existing.status,
-            allergies,
+            status: status ?? existing?.status,
+            allergies: allergiesValue,
             bedId: bedId ?? null,
             admissionDate: new Date(),
             discharged: false,
@@ -102,7 +117,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
     // Alta nueva
     const patient = await prisma.patient.create({
       data: {
-        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, status, allergies, bedId,
+        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, status, allergies: allergiesValue, bedId,
         dietRestriction, isolationRestriction, mobilityRestriction,
       },
       include: { bed: true }
@@ -121,13 +136,18 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: validation.error.issues[0].message });
   }
 
-  const { dob, ...rest } = validation.data;
+    const { dob, allergies, ...rest } = validation.data;
+
+    // Convert allergies to comma-separated string if needed
+    const allergiesValue = allergies ? (Array.isArray(allergies) ? allergies.join(',') : allergies) : null;
+
   try {
     const patient = await prisma.patient.update({
       where: { id },
       data: {
         ...rest,
         ...(dob ? { dob: new Date(dob) } : {}),
+        ...(allergies !== undefined ? { allergies: allergiesValue } : {}),
       },
       include: { bed: true }
     });

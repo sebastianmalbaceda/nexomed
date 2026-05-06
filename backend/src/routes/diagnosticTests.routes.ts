@@ -1,7 +1,7 @@
 // src/routes/diagnosticTests.routes.ts
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { getAllDiagnosticTests, getDiagnosticTests, createDiagnosticTest, addTestResult, updateDiagnosticTest, deleteDiagnosticTest } from '../controllers/diagnosticTests.controller';
+import { getAllDiagnosticTests, getDiagnosticTests, createDiagnosticTest, addTestResult, updateTestStatus } from '../controllers/diagnosticTests.controller';
 
 const router = Router();
 
@@ -21,7 +21,7 @@ const router = Router();
  *         schema: { type: string, enum: [LAB, IMAGING] }
  *       - in: query
  *         name: status
- *         schema: { type: string, enum: [pending, completed] }
+ *         schema: { type: string, enum: [REQUESTED, APPROVED, REJECTED, COMPLETED] }
  *       - in: query
  *         name: date
  *         schema: { type: string, example: 2026-04-27 }
@@ -59,7 +59,7 @@ router.get('/:patientId', authenticate, getDiagnosticTests);
  * @swagger
  * /tests:
  *   post:
- *     summary: Programar prueba diagnóstica (solo DOCTOR)
+ *     summary: Solicitar prueba diagnóstica (DOCTOR y NURSE)
  *     tags: [DiagnosticTests]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -76,11 +76,42 @@ router.get('/:patientId', authenticate, getDiagnosticTests);
  *               scheduledAt: { type: string, format: date-time }
  *     responses:
  *       201:
- *         description: Prueba programada
+ *         description: Prueba solicitada
  *       400:
  *         description: Validación fallida
  */
-router.post('/', authenticate, authorize('DOCTOR'), createDiagnosticTest);
+router.post('/', authenticate, authorize('DOCTOR', 'NURSE'), createDiagnosticTest);
+
+/**
+ * @swagger
+ * /tests/{id}/status:
+ *   put:
+ *     summary: Cambiar estado de prueba (DOCTOR)
+ *     tags: [DiagnosticTests]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [APPROVED, REJECTED, COMPLETED] }
+ *     responses:
+ *       200:
+ *         description: Estado actualizado
+ *       400:
+ *         description: Validación fallida
+ *       404:
+ *         description: Prueba no encontrada
+ */
+router.put('/:id/status', authenticate, authorize('DOCTOR'), updateTestStatus);
 
 /**
  * @swagger
@@ -112,55 +143,5 @@ router.post('/', authenticate, authorize('DOCTOR'), createDiagnosticTest);
  *         description: Prueba no encontrada
  */
 router.put('/:id/result', authenticate, authorize('DOCTOR', 'NURSE'), addTestResult);
-
-/**
- * @swagger
- * /tests/{id}:
- *   put:
- *     summary: Actualizar prueba diagnóstica (solo DOCTOR)
- *     tags: [DiagnosticTests]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               type: { type: string, enum: [LAB, IMAGING] }
- *               name: { type: string }
- *               scheduledAt: { type: string, format: date-time }
- *               status: { type: string, enum: [PENDING, COMPLETED, CANCELLED] }
- *     responses:
- *       200:
- *         description: Prueba actualizada
- *       400:
- *         description: Validación fallida
- */
-router.put('/:id', authenticate, authorize('DOCTOR'), updateDiagnosticTest);
-
-/**
- * @swagger
- * /tests/{id}:
- *   delete:
- *     summary: Eliminar prueba diagnóstica (solo DOCTOR)
- *     tags: [DiagnosticTests]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Prueba eliminada
- *       404:
- *         description: Prueba no encontrada
- */
-router.delete('/:id', authenticate, authorize('DOCTOR'), deleteDiagnosticTest);
 
 export default router;

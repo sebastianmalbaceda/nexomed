@@ -1,11 +1,13 @@
 // src/services/notification.service.ts
 import { prisma } from '../lib/prismaClient';
 import { notificationBus } from '../lib/notificationEvents';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export async function notifyNursesAboutMedicationChange(
   patientId: string,
   type: string,
-  message: string
+  message: string,
+  senderName?: string
 ) {
   // Find the assigned nurse for this patient (if any)
   const patient = await prisma.patient.findUnique({
@@ -43,6 +45,7 @@ export async function notifyNursesAboutMedicationChange(
       message,
       relatedPatientId: patientId,
       createdAt,
+      senderName,
     });
   }
   console.log(`[notifications] ${type} → ${validNurses.length} enfermero(s) notificado(s)`);
@@ -51,7 +54,8 @@ export async function notifyNursesAboutMedicationChange(
 export async function notifyNursesAboutDiagnosticTest(
   patientId: string,
   type: string,
-  message: string
+  message: string,
+  senderName?: string
 ) {
   const nurses = await prisma.user.findMany({
     where: { role: 'NURSE' }
@@ -79,6 +83,7 @@ export async function notifyNursesAboutDiagnosticTest(
       message,
       relatedPatientId: patientId,
       createdAt,
+      senderName,
     });
   }
   console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
@@ -87,7 +92,8 @@ export async function notifyNursesAboutDiagnosticTest(
 export async function notifyNursesAboutIncident(
   patientId: string,
   type: string,
-  message: string
+  message: string,
+  senderName?: string
 ) {
   const nurses = await prisma.user.findMany({
     where: { role: 'NURSE' }
@@ -115,6 +121,7 @@ export async function notifyNursesAboutIncident(
       message,
       relatedPatientId: patientId,
       createdAt,
+      senderName,
     });
   }
   console.log(`[notifications] ${type} → ${nurses.length} enfermeros notificados`);
