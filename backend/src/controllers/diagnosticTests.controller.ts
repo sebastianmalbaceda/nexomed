@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { createDiagnosticTestSchema, updateTestResultSchema, updateDiagnosticTestSchema } from '../validations/diagnosticTest.validation';
+import { createDiagnosticTestSchema, updateTestResultSchema, updateDiagnosticTestSchema, updateTestStatusSchema } from '../validations/diagnosticTest.validation';
 import { handlePrismaError } from '../lib/errorHandler';
 import { notifyNursesAboutDiagnosticTest } from '../services/notification.service';
 
@@ -27,8 +27,10 @@ function serializeDiagnosticTest(test: {
   name: string;
   scheduledAt: Date;
   result: string | null;
+  status: string;
   createdAt?: Date;
   requestedBy?: { name: string; role: string };
+  reviewedBy?: { name: string; role: string } | null;
   patient?: {
     id: string;
     name: string;
@@ -38,6 +40,7 @@ function serializeDiagnosticTest(test: {
   return {
     ...test,
     requestedBy: test.requestedBy?.name,
+    reviewedBy: test.reviewedBy?.name ?? null,
   };
 }
 
@@ -52,12 +55,8 @@ function buildDiagnosticTestsWhere(query: DiagnosticTestsQuery) {
     where.type = query.type;
   }
 
-  if (query.status === 'pending') {
-    where.result = null;
-  }
-
-  if (query.status === 'completed') {
-    where.result = { not: null } as never;
+  if (query.status) {
+    where.status = query.status;
   }
 
   if (query.date) {
@@ -78,6 +77,7 @@ export const getAllDiagnosticTests = async (req: AuthRequest, res: Response) => 
       orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
       include: {
         requestedBy: { select: { name: true, role: true } },
+        reviewedBy: { select: { name: true, role: true } },
         patient: {
           select: {
             id: true,
@@ -103,6 +103,7 @@ export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
       orderBy: { scheduledAt: 'desc' },
       include: {
         requestedBy: { select: { name: true, role: true } },
+        reviewedBy: { select: { name: true, role: true } },
         patient: {
           select: {
             id: true,
@@ -118,7 +119,7 @@ export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// POST /api/tests — solicitar prueba diagnóstica (solo DOCTOR)
+// POST /api/tests — solicitar prueba diagnóstica (DOCTOR y NURSE)
 export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
   const validation = createDiagnosticTestSchema.safeParse(req.body);
   if (!validation.success) {
@@ -133,20 +134,81 @@ export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
         type,
         name,
         scheduledAt: new Date(scheduledAt),
-        requestedById: req.user!.id
+        requestedById: req.user!.id,
+        status: 'REQUESTED',
       }
     });
 
-    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
-    const typeLabel = type === 'LAB' ? 'Laboratorio' : 'Diagnóstico por imagen';
-
-    await notifyNursesAboutDiagnosticTest(
-      patientId,
-      'TEST_NEW',
-      `Nueva prueba de ${typeLabel} programada para ${patient?.name ?? 'paciente'}: ${name}`
-    );
+    // Notificar al médico si quien solicita es enfermera
+    if (req.user!.role === 'NURSE') {
+      const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { name: true } });
+      const doctors = await prisma.user.findMany({ where: { role: 'DOCTOR' } });
+      for (const doctor of doctors) {
+        await prisma.notification.create({
+          data: {
+            userId: doctor.id,
+            type: 'TEST_REQUESTED',
+            message: `${req.user!.name} solicita ${name} para ${patient?.name ?? 'el paciente'}`,
+            relatedPatientId: patientId,
+            relatedTestId: test.id,
+          }
+        });
+      }
+    } else {
+      // Notificar a enfermeras si quien solicita es médico
+      const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+      const typeLabel = type === 'LAB' ? 'Laboratorio' : 'Diagnóstico por imagen';
+      await notifyNursesAboutDiagnosticTest(
+        patientId,
+        'TEST_NEW',
+        `Nueva prueba de ${typeLabel} programada para ${patient?.name ?? 'paciente'}: ${name}`,
+        req.user!.name
+      );
+    }
 
     res.status(201).json(test);
+  } catch (error) {
+    return handlePrismaError(error, res);
+  }
+};
+
+// PUT /api/tests/:id/status — cambiar estado (DOCTOR)
+export const updateTestStatus = async (req: AuthRequest, res: Response) => {
+  const validation = updateTestStatusSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues[0].message });
+  }
+
+  const { id } = req.params as { id: string };
+  const { status } = validation.data;
+
+  try {
+    const test = await prisma.diagnosticTest.update({
+      where: { id },
+      data: {
+        status,
+        reviewedById: req.user!.id,
+      },
+      include: {
+        requestedBy: { select: { id: true, name: true } },
+        patient: { select: { name: true } },
+      },
+    });
+
+    // Notificar a quien solicitó la prueba
+    if (test.requestedById !== req.user!.id) {
+      const statusLabel = status === 'APPROVED' ? 'aprobada' : status === 'REJECTED' ? 'rechazada' : 'completada';
+      await prisma.notification.create({
+        data: {
+          userId: test.requestedById,
+          type: 'TEST_REVIEWED',
+          message: `Tu prueba "${test.name}" ha sido ${statusLabel} por ${req.user!.name}`,
+          relatedPatientId: test.patientId,
+        }
+      });
+    }
+
+    res.json(test);
   } catch (error) {
     return handlePrismaError(error, res);
   }
@@ -164,50 +226,10 @@ export const addTestResult = async (req: AuthRequest, res: Response) => {
   try {
     const test = await prisma.diagnosticTest.update({
       where: { id },
-      data: { result }
+      data: { result, status: 'COMPLETED' }
     });
     res.json(test);
   } catch (error) {
-    return handlePrismaError(error, res);
-  }
-};
-
-// PUT /api/tests/:id — actualizar prueba (solo DOCTOR)
-export const updateDiagnosticTest = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params as { id: string };
-  console.log('[updateDiagnosticTest] id:', id, 'body:', req.body, 'user:', req.user);
-  const validation = updateDiagnosticTestSchema.safeParse(req.body);
-  if (!validation.success) {
-    console.log('[updateDiagnosticTest] validation error:', validation.error.issues[0].message);
-    return res.status(400).json({ error: validation.error.issues[0].message });
-  }
-
-  const { type, name, scheduledAt, status } = validation.data;
-  try {
-    const test = await prisma.diagnosticTest.update({
-      where: { id },
-      data: {
-        ...(type && { type }),
-        ...(name && { name }),
-        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
-        ...(status && { status }),
-      }
-    });
-    res.json(test);
-  } catch (error) {
-    return handlePrismaError(error, res);
-  }
-};
-
-// DELETE /api/tests/:id — eliminar prueba (solo DOCTOR)
-export const deleteDiagnosticTest = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params as { id: string };
-  console.log('[deleteDiagnosticTest] id:', id, 'user:', req.user);
-  try {
-    await prisma.diagnosticTest.delete({ where: { id } });
-    res.json({ success: true, message: 'Prueba eliminada correctamente' });
-  } catch (error) {
-    console.error('[deleteDiagnosticTest] error:', error);
     return handlePrismaError(error, res);
   }
 };
