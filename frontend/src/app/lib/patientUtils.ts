@@ -1,17 +1,16 @@
 // Utility functions for patient data
 
 /**
- * Parse allergies from comma-separated string to array
- * Backend stores allergies as comma-separated string for SQLite compatibility
+ * Normalize allergies array — filter out empty strings
  */
-export function parseAllergies(allergies: string | null): string[] {
-  if (!allergies || allergies.trim() === '') return [];
-  return allergies.split(',').map(a => a.trim()).filter(a => a !== '');
+export function parseAllergies(allergies: string[] | null | undefined): string[] {
+  if (!allergies) return [];
+  return allergies.map(a => a.trim()).filter(a => a !== '');
 }
 
 /**
- * Get allergies count from comma-separated string
+ * Get allergies count from array
  */
-export function getAllergiesCount(allergies: string | null): number {
+export function getAllergiesCount(allergies: string[] | null | undefined): number {
   return parseAllergies(allergies).length;
 }

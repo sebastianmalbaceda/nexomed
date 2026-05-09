@@ -28,7 +28,7 @@ const getStatusStyles = (status: string) => {
   return statusMap[status] ?? { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
 };
 
-const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: '', gender: '' };
+const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [] as string[], gender: '' };
 
 interface RoomGroup { room: number; beds: Bed[] }
 
@@ -97,7 +97,6 @@ export default function BedMapPage() {
 
   const admitMutation = useMutation({
     mutationFn: async (bedId: string) => {
-      const allergiesArr = form.allergies.split(',').map(s => s.trim()).filter(Boolean);
       return api.post<Patient>('/patients', {
         dni: form.dni.trim(),
         name: form.name.trim(),
@@ -105,7 +104,7 @@ export default function BedMapPage() {
         dob: new Date(form.dob).toISOString(),
         diagnosis: form.diagnosis.trim(),
         status: form.status,
-        allergies: allergiesArr,
+        allergies: form.allergies,
         bedId,
       });
     },
@@ -134,12 +133,12 @@ export default function BedMapPage() {
         dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         diagnosis: '',
         status: patient.status ?? 'ESTABLE',
-        allergies: patient.allergies ? patient.allergies : '',
+        allergies: patient.allergies ?? [],
       }));
     },
     onError: () => {
       setDniFound(null);
-      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: '', gender: '' }));
+      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [], gender: '' }));
     },
   });
 
@@ -640,8 +639,8 @@ export default function BedMapPage() {
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Alergias (separadas por coma)</label>
-                        <input type="text" placeholder="penicilina, ibuprofeno..." value={form.allergies}
-                          onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))}
+                        <input type="text" placeholder="penicilina, ibuprofeno..." value={form.allergies.join(', ')}
+                          onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
                       </div>
 

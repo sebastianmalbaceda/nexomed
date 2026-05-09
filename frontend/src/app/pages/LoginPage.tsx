@@ -21,6 +21,12 @@ export default function LoginPage() {
     },
   });
 
+  const errorMessage = loginMutation.error
+    ? loginMutation.error.message === 'Credenciales incorrectas'
+      ? 'Credenciales incorrectas'
+      : 'Error del servidor. Inténtalo de nuevo.'
+    : null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email && password) {
@@ -77,9 +83,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {loginMutation.isError && (
+          {errorMessage && (
             <p className="text-sm text-red-500 text-center">
-              Credenciales incorrectas
+              {errorMessage}
             </p>
           )}
 

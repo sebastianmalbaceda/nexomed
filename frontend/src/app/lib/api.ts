@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 export const BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
-/** Generic fetch wrapper — adds Bearer token and unwraps { data: T } */
+/** Generic fetch wrapper — adds Bearer token and returns the JSON body directly */
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
 

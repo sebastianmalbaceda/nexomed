@@ -144,10 +144,10 @@ export function DashboardOverview() {
                         {p.bed ? `Hab. ${p.bed.room}${p.bed.letter}` : '—'}
                       </td>
                       <td className="px-5 py-3 hidden lg:table-cell">
-                        {p.allergies && p.allergies.trim() !== '' ? (
+                        {p.allergies.length > 0 ? (
                           <span className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
                             <AlertCircle className="w-3 h-3" />
-                            {p.allergies.split(',').length} alergia{p.allergies.split(',').length > 1 ? 's' : ''}
+                            {p.allergies.length} alergia{p.allergies.length > 1 ? 's' : ''}
                           </span>
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>

@@ -152,10 +152,7 @@ export default function PatientsPage() {
   const [createError, setCreateError] = useState('');
 
   const createPatientMutation = useMutation({
-    mutationFn: (data: typeof form) => api.post('/patients', {
-      ...data,
-      allergies: data.allergies.join(','), // Convert array to comma-separated string for backend
-    }),
+    mutationFn: (data: typeof form) => api.post('/patients', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setShowForm(false);

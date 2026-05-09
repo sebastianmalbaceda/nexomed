@@ -1,9 +1,10 @@
 // src/services/careRecord.service.ts
+import { CareRecordType } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 
 const ANTI_DUPLICATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-export async function checkDuplicateCareRecord(patientId: string, type: string) {
+export async function checkDuplicateCareRecord(patientId: string, type: CareRecordType) {
   const fifteenMinutesAgo = new Date(Date.now() - ANTI_DUPLICATE_WINDOW_MS);
 
   const existingRecord = await prisma.careRecord.findFirst({
@@ -24,7 +25,7 @@ export async function checkDuplicateCareRecord(patientId: string, type: string) 
 
 export async function createCareRecordWithAntiDuplicate(
   patientId: string,
-  type: string,
+  type: CareRecordType,
   value: string,
   unit: string | null,
   notes: string | null,

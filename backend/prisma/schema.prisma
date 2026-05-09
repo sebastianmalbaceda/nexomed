@@ -3,15 +3,49 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  NURSE
+  DOCTOR
+  TCAE
+}
+
+enum PatientStatus {
+  ESTABLE
+  MODERADO
+  CRITICO
+  OBSERVACION
+}
+
+enum DiagnosticTestType {
+  LAB
+  IMAGING
+}
+
+enum DiagnosticTestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum CareRecordType {
+  constante
+  cura
+  higiene
+  balance
+  ingesta
 }
 
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   password     String
-  role         String         // NURSE, DOCTOR, TCAE
+  role         Role
   name         String
   shift        String?        // morning, afternoon, night (solo para NURSE)
   createdAt    DateTime @default(now())
@@ -32,7 +66,7 @@ model Patient {
   name                 String
   dob                  DateTime
   diagnosis            String
-  allergies            String?          // Comma-separated for SQLite compatibility
+  allergies            String[]         // Array nativo de PostgreSQL
   admissionDate        DateTime         @default(now())
   bedId                String?          @unique
   dietRestriction      String?
@@ -42,7 +76,7 @@ model Patient {
   dischargeDate        DateTime?
   discharged           Boolean          @default(false)
   surnames             String?
-  status               String           @default("ESTABLE") // ESTABLE, MODERADO, CRITICO, OBSERVACION
+  status               PatientStatus    @default(ESTABLE)
   assignedNurseId      String?
   assignedNurse        User?            @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
   careRecords          CareRecord[]
@@ -94,7 +128,7 @@ model MedSchedule {
 model CareRecord {
   id           String   @id @default(uuid())
   patientId    String
-  type         String
+  type         CareRecordType
   value        String
   unit         String?
   notes        String?
@@ -133,11 +167,11 @@ model DiagnosticTest {
   id            String           @id @default(uuid())
   patient       Patient          @relation(fields: [patientId], references: [id])
   patientId     String
-  type          String
+  type          DiagnosticTestType
   name          String
   scheduledAt   DateTime
   result        String?
-  status        String           @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, COMPLETED
+  status        DiagnosticTestStatus @default(REQUESTED)
   requestedBy   User            @relation("RequestedBy", fields: [requestedById], references: [id])
   requestedById String
   reviewedBy   User?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
@@ -145,5 +179,3 @@ model DiagnosticTest {
   createdAt     DateTime         @default(now())
   notifications Notification[]
 }
-
-// Enums removed for SQLite compatibility - use String fields with validation

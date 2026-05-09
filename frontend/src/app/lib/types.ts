@@ -22,7 +22,7 @@ export interface Patient {
   dob: string;
   diagnosis: string;
   status: PatientStatus;
-  allergies: string | null; // Comma-separated for SQLite compatibility
+  allergies: string[];
   dietRestriction: string | null;
   isolationRestriction: string | null;
   mobilityRestriction: string | null;

@@ -52,11 +52,11 @@ function buildDiagnosticTestsWhere(query: DiagnosticTestsQuery) {
   }
 
   if (query.type) {
-    where.type = query.type;
+    where.type = query.type as Prisma.EnumDiagnosticTestTypeFilter<'DiagnosticTest'>;
   }
 
   if (query.status) {
-    where.status = query.status;
+    where.status = query.status as Prisma.EnumDiagnosticTestStatusFilter<'DiagnosticTest'>;
   }
 
   if (query.date) {

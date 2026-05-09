@@ -79,9 +79,6 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
       dietRestriction, isolationRestriction, mobilityRestriction,
     } = validation.data;
 
-    // Convert allergies to comma-separated string if needed
-    const allergiesValue = allergies ? (Array.isArray(allergies) ? allergies.join(',') : allergies) : null;
-
   try {
     if (dni) {
       const existing = await prisma.patient.findFirst({ where: { dni } });
@@ -99,7 +96,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
             surnames: surnames ?? existing?.surnames,
             diagnosis,
             status: status ?? existing?.status,
-            allergies: allergiesValue,
+            ...(allergies !== undefined ? { allergies } : {}),
             bedId: bedId ?? null,
             admissionDate: new Date(),
             discharged: false,
@@ -117,7 +114,7 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
     // Alta nueva
     const patient = await prisma.patient.create({
       data: {
-        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, status, allergies: allergiesValue, bedId,
+        dni, name, surnames: surnames ?? '', dob: new Date(dob), diagnosis, status, allergies, bedId,
         dietRestriction, isolationRestriction, mobilityRestriction,
       },
       include: { bed: true }
@@ -138,16 +135,13 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
 
     const { dob, allergies, ...rest } = validation.data;
 
-    // Convert allergies to comma-separated string if needed
-    const allergiesValue = allergies ? (Array.isArray(allergies) ? allergies.join(',') : allergies) : null;
-
   try {
     const patient = await prisma.patient.update({
       where: { id },
       data: {
         ...rest,
         ...(dob ? { dob: new Date(dob) } : {}),
-        ...(allergies !== undefined ? { allergies: allergiesValue } : {}),
+        ...(allergies !== undefined ? { allergies } : {}),
       },
       include: { bed: true }
     });
