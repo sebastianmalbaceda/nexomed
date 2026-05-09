@@ -1,6 +1,5 @@
 // src/validations/patient.validation.ts
 import { z } from 'zod';
-import { PatientStatus } from '@prisma/client';
 
 export const createPatientSchema = z.object({
   dni: z.string().regex(/^\d{9}$/, 'El DNI debe tener exactamente 9 dígitos numéricos').optional(),
@@ -8,7 +7,7 @@ export const createPatientSchema = z.object({
   surnames: z.string().min(1, 'Los apellidos son obligatorios'),
   dob: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha de nacimiento inválida'),
   diagnosis: z.string().min(1, 'El diagnóstico es obligatorio'),
-  status: z.nativeEnum(PatientStatus).default(PatientStatus.ESTABLE),
+  status: z.enum(['ESTABLE', 'MODERADO', 'CRITICO', 'OBSERVACION']).default('ESTABLE'),
   allergies: z.array(z.string()).optional(),
   dietRestriction: z.string().nullable().optional(),
   isolationRestriction: z.string().nullable().optional(),
@@ -22,7 +21,7 @@ export const updatePatientSchema = z.object({
   surnames: z.string().min(1).optional(),
   dob: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha de nacimiento inválida').optional(),
   diagnosis: z.string().min(1).optional(),
-  status: z.nativeEnum(PatientStatus).optional(),
+  status: z.enum(['ESTABLE', 'MODERADO', 'CRITICO', 'OBSERVACION']).optional(),
   allergies: z.array(z.string()).optional(),
   dietRestriction: z.string().nullable().optional(),
   isolationRestriction: z.string().nullable().optional(),

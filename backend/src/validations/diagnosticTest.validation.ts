@@ -1,10 +1,9 @@
 // src/validations/diagnosticTest.validation.ts
 import { z } from 'zod';
-import { DiagnosticTestType, DiagnosticTestStatus } from '@prisma/client';
 
 export const createDiagnosticTestSchema = z.object({
   patientId: z.string().uuid('ID de paciente inválido'),
-  type: z.nativeEnum(DiagnosticTestType),
+  type: z.string().min(1, 'El tipo de prueba es obligatorio'),
   name: z.string().min(1, 'El nombre de la prueba es obligatorio'),
   scheduledAt: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha programada inválida')
 });
@@ -14,14 +13,14 @@ export const updateTestResultSchema = z.object({
 });
 
 export const updateDiagnosticTestSchema = z.object({
-  type: z.nativeEnum(DiagnosticTestType).optional(),
+  type: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   scheduledAt: z.string().refine(val => !isNaN(Date.parse(val)) || !val).optional(),
-  status: z.nativeEnum(DiagnosticTestStatus).optional()
+  status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional()
 });
 
 export const updateTestStatusSchema = z.object({
-  status: z.nativeEnum(DiagnosticTestStatus)
+  status: z.enum(['APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED'])
 });
 
 export type CreateDiagnosticTestInput = z.infer<typeof createDiagnosticTestSchema>;

@@ -52,11 +52,11 @@ function buildDiagnosticTestsWhere(query: DiagnosticTestsQuery) {
   }
 
   if (query.type) {
-    where.type = query.type as Prisma.EnumDiagnosticTestTypeFilter<'DiagnosticTest'>;
+    where.type = query.type;
   }
 
   if (query.status) {
-    where.status = query.status as Prisma.EnumDiagnosticTestStatusFilter<'DiagnosticTest'>;
+    where.status = query.status;
   }
 
   if (query.date) {
@@ -77,7 +77,6 @@ export const getAllDiagnosticTests = async (req: AuthRequest, res: Response) => 
       orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
       include: {
         requestedBy: { select: { name: true, role: true } },
-        reviewedBy: { select: { name: true, role: true } },
         patient: {
           select: {
             id: true,
@@ -103,7 +102,6 @@ export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
       orderBy: { scheduledAt: 'desc' },
       include: {
         requestedBy: { select: { name: true, role: true } },
-        reviewedBy: { select: { name: true, role: true } },
         patient: {
           select: {
             id: true,
@@ -150,7 +148,6 @@ export const createDiagnosticTest = async (req: AuthRequest, res: Response) => {
             type: 'TEST_REQUESTED',
             message: `${req.user!.name} solicita ${name} para ${patient?.name ?? 'el paciente'}`,
             relatedPatientId: patientId,
-            relatedTestId: test.id,
           }
         });
       }
@@ -187,7 +184,6 @@ export const updateTestStatus = async (req: AuthRequest, res: Response) => {
       where: { id },
       data: {
         status,
-        reviewedById: req.user!.id,
       },
       include: {
         requestedBy: { select: { id: true, name: true } },
