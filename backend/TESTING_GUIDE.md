@@ -382,6 +382,11 @@ describe('CareRecord Endpoints', () => {
 
 ---
 
+## ⚠️ Compatibilidad Jest/ts-jest
+
+Existe un conflicto de versiones: `jest@30.4.0` requiere `ts-jest@30+` pero el proyecto tiene `ts-jest@29.4.9`.
+Para ejecutar los tests: `npm install ts-jest@latest --save-dev`
+
 ## 🚀 Ejecutar tests
 
 ```bash

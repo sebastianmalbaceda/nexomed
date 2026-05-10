@@ -56,8 +56,13 @@ NexoMed centraliza toda la gestión clínica (medicación, cuidados, historial, 
 git clone https://github.com/<org>/nexomed.git
 cd nexomed
 
-# Instalar dependencias
-npm run install:all
+# Instalar dependencias — frontend
+cd frontend
+npm install
+
+# Instalar dependencias — backend
+cd ../backend
+npm install
 ```
 
 ### Configurar variables de entorno

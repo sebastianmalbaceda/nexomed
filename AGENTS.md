@@ -20,7 +20,7 @@ cd frontend
 npm install           # instalar dependencias
 npm run dev           # servidor de desarrollo (puerto 5173)
 npm run build         # build de producción
-npm run lint          # ESLint + Prettier check
+npm run lint          # ESLint check
 npm run test          # Vitest (tests de componentes)
 
 # --- BACKEND ---
@@ -40,20 +40,23 @@ npm run db:studio     # abrir Prisma Studio (GUI de la DB)
 ## Stack Tecnológico (versiones exactas)
 
 ### Frontend
-- **React 18** + Vite 5 + TypeScript 5.4
+- **React 19** + Vite 8 + TypeScript 5.9
 - Tailwind CSS 3 + Shadcn UI + Lucide React
-- React Router DOM v6
+- React Router DOM v7
 - TanStack Query v5 (data fetching y caché)
 - Zustand (estado global: sesión, token, rol)
 - React Hook Form + Zod (formularios y validación)
 
 ### Backend
-- **Node.js 20** + Express 4 + TypeScript 5.4
-- PostgreSQL 15 + Prisma ORM 5
+- **Node.js 20** + Express 5 + TypeScript 5.9
+- PostgreSQL 15 (Neon) + Prisma ORM 5
 - jsonwebtoken + bcrypt + cors
+- swagger-jsdoc + swagger-ui-express (documentación API)
 
 ### Herramientas
 - ESLint + Prettier + Husky (pre-commit)
+- Jest + Supertest (tests backend)
+- Vitest + Testing Library (tests frontend)
 - GitHub (estrategia de ramas por sprint + feature)
 - Jira (SCRUM — Sprint Backlog + Kanban)
 
@@ -66,26 +69,23 @@ nexomed/
 ├── frontend/src/app/
 │   ├── components/        ← Componentes React (un archivo por componente, PascalCase)
 │   │   ├── ui/            ← Shadcn UI (no modificar directamente)
-│   │   ├── Sidebar.tsx
-│   │   ├── Header.tsx
-│   │   ├── BedMap.tsx
-│   │   ├── DashboardOverview.tsx
-│   │   ├── MedicalSchedule.tsx
-│   │   ├── DiagnosticTests.tsx
-│   │   ├── ShiftReport.tsx
-│   │   ├── UnifiedHistory.tsx
-│   │   ├── RealtimeNotifications.tsx
-│   │   └── QuickActions.tsx
+│   │   ├── hospital/      ← Componentes específicos (Sidebar, Header, BedMap, etc.)
+│   │   ├── auth/          ← ProtectedRoute, AuthProvider
+│   │   └── ErrorBoundary.tsx
 │   ├── pages/             ← Páginas de nivel superior (una por ruta)
 │   ├── hooks/             ← Custom hooks (prefijo "use")
-│   ├── store/             ← Zustand stores (authStore, notificationStore)
-│   └── lib/               ← Helpers, instancia axios, constantes
+│   ├── store/             ← Zustand stores (authStore)
+│   └── lib/               ← Helpers, instancia api, constantes, tipos
 ├── backend/src/
-│   ├── routes/            ← Definición de endpoints por entidad
+│   ├── routes/            ← Definición de endpoints por entidad (11 archivos)
 │   ├── controllers/       ← Solo orquestación (lógica → services)
 │   ├── middlewares/       ← auth.middleware.ts (authenticate + authorize), error.middleware.ts
 │   ├── services/          ← Lógica de negocio (recálculo, notificaciones, CIMA)
-│   └── prisma/            ← schema.prisma + migraciones
+│   ├── validations/       ← Schemas Zod para validación de requests
+│   ├── lib/               ← prismaClient, errorHandler, notificationEvents
+│   └── prisma/            ← schema.prisma + migraciones + seed
+├── docs/
+│   └── Contrato.docx      ← Contrato académico del proyecto
 ├── SPEC.md                ← Fuente de verdad de requisitos
 ├── ARCHITECTURE.md        ← Diseño técnico del sistema
 ├── PLANNING.md            ← Tareas activas (leer antes de escribir código)
@@ -185,6 +185,7 @@ JWT_SECRET="tu_secreto_muy_seguro_min_32_chars"
 JWT_EXPIRES_IN="8h"
 PORT=3000
 CORS_ORIGIN="http://localhost:5173,http://localhost:5174"
+NODE_ENV="development"
 
 # .env (frontend)
 VITE_API_URL="http://localhost:3000/api"

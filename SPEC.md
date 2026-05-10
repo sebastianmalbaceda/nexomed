@@ -207,9 +207,32 @@ POST   /api/incidents           → Registrar incidencia
 
 ### Pruebas Diagnósticas
 ```
+GET    /api/tests               → Todas las pruebas
 GET    /api/tests/:patientId    → Pruebas programadas y resultados
-POST   /api/tests               → Programar prueba (Médico)
-PUT    /api/tests/:id           → Actualizar resultado
+POST   /api/tests               → Programar prueba (Médico, Enfermero)
+PUT    /api/tests/:id/status    → Actualizar estado (Médico)
+PUT    /api/tests/:id/result    → Añadir resultado (Médico, Enfermero)
+```
+
+### Usuarios
+```
+GET    /api/users/nurses        → Lista de enfermeros
+```
+
+### Cronograma
+```
+GET    /api/schedule            → Cronograma agregado (medicación + cuidados)
+```
+
+### Pacientes (endpoints adicionales)
+```
+GET    /api/patients/:patientId/care-records  → Cuidados del paciente
+GET    /api/patients/:patientId/incidents     → Incidencias del paciente
+```
+
+### Incidencias (endpoints adicionales)
+```
+GET    /api/incidents/:patientId  → Incidencias por paciente
 ```
 
 ### Medicamentos (CIMA/AEMPS)
@@ -250,14 +273,14 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, reques
 ## 9. Estado de Implementación (Actualizado Mayo 2026)
 
 ### ✅ Completado
-- Backend con Express + Prisma + JWT implementado
-- Frontend con React 18 + Vite + TanStack Query + Zustand operativo
+- Backend con Express 5 + Prisma + JWT implementado
+- Frontend con React 19 + Vite 8 + TanStack Query + Zustand operativo
 - Autenticación JWT con login/logout funcional
 - SSE (Server-Sent Events) para notificaciones en tiempo real
 - Mapa de camas con gestión de altas/bajas/reubicaciones
 - **Pestañas General/Mis Pacientes** en mapa de camas
 - **Asignación de enfermera a pacientes** (persiste en BD)
-- Registro de cuidados y constantes con anti-duplicidad
+- Registro de cuidados y constantes con anti-duplicidad (15 min)
 - Integración con API CIMA (proxy en backend)
 - Shadcn UI + Tailwind correctamente configurados
 - Seed de base de datos con usuarios y pacientes de prueba
@@ -266,17 +289,21 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, reques
 - **Cronograma de medicación** visual por turnos (NursePage)
 - **Evolutivos y notas de turno** (EVOLUTIVO, FIN_TURNO, TRASLADO, INCIDENCIA)
 - **Estado del paciente** (ESTABLE/MODERADO/CRITICO/OBSERVACION)
-- **Enfermero puede solicitar pruebas diagnósticas** (el médico aprueba)
+- **Enfermero puede solicitar pruebas diagnósticas**
 - **Doctor no da de alta** — solo administración puede dar de alta
-- Error Boundary en React
+- Error Boundary en React (ErrorBoundary.tsx)
+- 21 tests de integración (7 archivos)
+- Swagger UI en `/api/docs`
+- Endpoint `GET /api/users/nurses`
+- Endpoint `GET /api/schedule` (agregación unificada)
 
 ### 🔄 En Progreso
-- Documentación Swagger completa
-- Testing integrado (Jest + Supertest)
+- Tests adicionales: notifications, incidents, drugs, users controllers
+- Unit tests para servicios
 
 ### 📋 Pendiente
-- Alertas de restricciones para TCAE (dieta, aislamiento, movilidad)
-- READMEs de frontend y backend
+- Alertas visuales de restricciones para TCAE (campos en BD existentes, falta UI dedicada)
+- READMEs dedicados para frontend y backend
 - Preparación DEMO final
 - Validación final con el profesor
 

@@ -38,9 +38,9 @@ NexoMed sigue una arquitectura **Cliente-Servidor desacoplada**, con una SPA (Si
 
 | Tecnología | Versión | Propósito |
 |-----------|---------|-----------|
-| React | 18 | Framework UI principal |
-| Vite | 5 | Build tool y dev server (HMR) |
-| TypeScript | 5.4 | Tipado estático |
+| React | 19 | Framework UI principal |
+| Vite | 8 | Build tool y dev server (HMR) |
+| TypeScript | 5.9 | Tipado estático |
 | Tailwind CSS | 3 | Utilidades CSS |
 | Shadcn UI | latest | Componentes accesibles (modales, cards, sheets) |
 | Lucide React | latest | Iconografía médica |
@@ -62,7 +62,6 @@ frontend/
 │   │   │   ├── hospital/               ← Componentes específicos hospitalarios
 │   │   │   │   ├── Sidebar.tsx            ← Barra de navegación lateral por rol
 │   │   │   │   ├── Header.tsx             ← Cabecera con usuario, turno y notificaciones
-│   │   │   │   ├── BedMap.tsx             ← Mapa de camas de la planta (hardcoded, NO USAR)
 │   │   │   │   ├── DashboardOverview.tsx  ← Panel resumen del turno
 │   │   │   │   ├── MedicalSchedule.tsx    ← Cronograma de tareas / medicación
 │   │   │   │   ├── DiagnosticTests.tsx    ← Pruebas diagnósticas
@@ -213,6 +212,13 @@ enum Role {
   TCAE
 }
 
+enum PatientStatus {
+  ESTABLE
+  MODERADO
+  CRITICO
+  OBSERVACION
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -249,6 +255,7 @@ model Patient {
   bed                  Bed?      @relation(fields: [bedId], references: [id])
   assignedNurseId     String?
   assignedNurse        User?     @relation("AssignedNurse", fields: [assignedNurseId], references: [id])
+  status               PatientStatus @default(ESTABLE)
 
   medications      Medication[]
   careRecords      CareRecord[]
@@ -403,11 +410,11 @@ Se implementa mediante **SSE (Server-Sent Events)** y **polling activo** desde e
 ## 9. Estado de Implementación (Actualizado Mayo 2026)
 
 ### ✅ Completado
-- Backend Express + Prisma + JWT funcional
-- Frontend React 18 + Vite + TanStack Query operativo
+- Backend Express 5 + Prisma + JWT funcional
+- Frontend React 19 + Vite 8 + TanStack Query operativo
 - SSE para notificaciones en tiempo real
 - Mapa de camas funcional (BedMapPage.tsx) con pestañas General/Mis Pacientes
-- Registro de cuidados con anti-duplicidad
+- Registro de cuidados con anti-duplicidad (15 min)
 - Integración CIMA (proxy backend)
 - Shadcn UI + Tailwind configurados
 - Prescripción de medicación (DoctorPage + búsqueda CIMA)
@@ -417,13 +424,19 @@ Se implementa mediante **SSE (Server-Sent Events)** y **polling activo** desde e
 - Asignación de enfermera a pacientes (persiste en BD)
 - Estado del paciente (ESTABLE/MODERADO/CRITICO/OBSERVACION)
 - Enfermero puede solicitar pruebas diagnósticas
+- Error Boundary en React (ErrorBoundary.tsx)
+- 21 tests de integración (7 archivos)
+- Swagger UI en /api/docs
+- Endpoint GET /api/users/nurses
+- Endpoint GET /api/schedule (agregación unificada)
 
 ### 🔄 En Progreso
-- Documentación Swagger completa
-- Testing integrado (Jest + Supertest)
+- Tests de integración pendientes: notifications, incidents, drugs, users
+- Unit tests para services (medication, notification, careRecord, cima, schedule)
+- Pulido exhaustivo de UI/UX
 
 ### 📋 Pendiente
-- Alertas de restricciones para TCAE
-- READMEs de frontend y backend
-- Error Boundary en React
+- Alertas de restricciones visuales para TCAE (datos en BD, falta UI dedicada)
+- READMEs dedicados para frontend y backend
+- Preparación DEMO final
 - Validación final con profesor

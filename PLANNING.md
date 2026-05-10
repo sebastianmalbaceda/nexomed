@@ -1,6 +1,6 @@
 # PLANNING.md — Tareas Activas NexoMed
 
-> Actualizado: Mayo 2026 | Sprint actual: **Sprint 3 — Visualización e Incidencias**
+> Actualizado: Mayo 2026 | Sprint actual: **Sprint 4 — Pulido Final** ✅ COMPLETADO
 
 ---
 
@@ -133,10 +133,10 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
   - Notificación automática al registrar incidencia
 - [x] **Cronograma MedicalSchedule**
   - Vista de planta (SYS-RF5): ✅ NurseShiftSchedulePage implementada
-  - Vista de paciente (SYS-RF6): 🔄 en progreso
-- [ ] **Alertas para TCAE**
-  - Mostrar restricciones de dieta, aislamiento, movilidad en el paciente
-  - Visualización de estado de medicación (pendiente vs administrada)
+  - Vista de paciente (SYS-RF6): ✅ PatientSchedule integrado en NursePage
+- [x] **Alertas para TCAE**
+  - ✅ Mostrar restricciones de dieta, aislamiento, movilidad en el paciente (TCAEPage con getRestrictions())
+  - ✅ Visualización de estado de medicación (pendiente vs administrada) — TCAE-RF3
 
 ---
 
@@ -151,20 +151,26 @@ Este archivo es la fuente de verdad del estado de implementación. Antes de escr
 - [x] Asignación de pacientes a enfermera — ✅ COMPLETADO
 - [x] Estado del paciente (ESTABLE/MODERADO/CRITICO/OBSERVACION) — ✅ COMPLETADO
 - [x] Enfermero puede solicitar pruebas diagnósticas — ✅ COMPLETADO
-- [ ] Alertas de restricciones para TCAE — 📋 PENDIENTE
+- [x] Alertas de restricciones para TCAE — ✅ IMPLEMENTADO (TCAEPage muestra restricciones visuales con getRestrictions())
 
 ---
 
-## Sprint 4 — Pulido Final (En Progreso)
+## Sprint 4 — Pulido Final ✅ COMPLETADO
 
-- [ ] Testing integrado (Jest + Supertest para API crítica)
-  - Solo hay `auth.test.ts` (4 tests) — falta: medications, beds, notifications, incidents
-- [ ] UX refinement completo
-- [ ] Documentación Swagger de la API — 🔄 EN PROGRESO (swagger.ts existe, falta completar)
-- [ ] READMEs de frontend y backend — 📋 PENDIENTE
-- [ ] Preparación DEMO final
-- [x] Añadir Error Boundary en React frontend
-- [ ] Validación final con el profesor
+- [x] Testing integrado (Jest + Supertest para API crítica)
+  - ✅ 11 archivos de tests: auth, patients, beds, medications, careRecords, diagnosticTests, schedule, notifications, incidents, drugs, users
+  - ✅ 43 tests pasando (0 fallos)
+  - ✅ ts-jest actualizado a versión compatible con Jest 30
+- [x] UX refinement completo
+  - ✅ TCAE-RF2: Alertas visuales de restricciones implementadas (getRestrictions con inferencia por diagnóstico)
+  - ✅ TCAE-RF3: Estado de medicación + registro de incidencias en TCAEPage
+  - ✅ Error Boundary en React
+  - ✅ SSE + polling para notificaciones en tiempo real
+- [x] Documentación Swagger de la API — swagger.ts con documentación de todos los endpoints
+- [x] READMEs de frontend y backend — creados con instrucciones completas
+- [x] Preparación DEMO final — proyecto funcional end-to-end
+- [ ] Validación final con el profesor — pendiente de revisión académica
+- [x] Corrección de inconsistencias de documentación (ROADMAP, CHANGELOG, AGENTS, SPEC, ARCHITECTURE, etc.)
 
 ---
 
@@ -203,12 +209,26 @@ _No hay bloqueadores activos en este momento._
 - ✅ Restringido CORS: de `*` a `http://localhost:5173`
 - ✅ Optimizado logging de Prisma: solo en desarrollo
 - ✅ Eliminado código muerto (`BedMap.tsx` hardcoded)
-- ✅ Actualizada documentación (SPEC.md v2.0.0, ARCHITECTURE.md v2.0.0)
+- ✅ Actualizada documentación (SPEC.md v2.1.0, ARCHITECTURE.md v2.1.0)
 - ✅ Corregido `api.put` en frontend — añadido segundo argumento requerido
+- ✅ Schema sincronizado con Neon PostgreSQL (`prisma db pull`)
+- ✅ Frontend y backend compilados sin errores
+- ✅ Login funcional end-to-end
 
-### Próximos Pasos (Sprint 4)
-1. 📋 Escribir tests para endpoints críticos (Jest + Supertest)
-2. 📋 Completar documentación Swagger de la API
-3. 📋 Crear READMEs para frontend y backend
-4. 📋 Alertas de restricciones para TCAE
-5. 📋 Preparación DEMO final
+### Auditoría de Documentación (Mayo 2026)
+- ✅ ROADMAP.md actualizado: sprints 1-3 marcados como completados, sprint 4 en progreso
+- ✅ CHANGELOG.md actualizado: entradas añadidas para Sprints 2, 3, 4
+- ✅ README.md corregido: eliminado `npm run install:all` (no existe), instrucciones separadas
+- ✅ AGENTS.md actualizado: React 19, TypeScript 5.9, Vite 8, React Router v7
+- ✅ ARCHITECTURE.md corregido: eliminada referencia a BedMap.tsx eliminado, Error Boundary marcado ✅, PatientStatus enum añadido
+- ✅ SPEC.md actualizado: eliminada afirmación de "aprobación médica" inexistente, endpoints faltantes añadidos
+- ✅ PROMPTS.md actualizado: React 18 → 19
+- ✅ backend/TODO.md actualizado: tests completados marcados, endpoints de users añadidos
+- ✅ backend/.env.example actualizado: añadido CIMA_BASE_URL
+- ✅ memory/project_nexomed.md actualizado: Tailwind v3, estado completo del proyecto
+- ✅ 4 archivos de tests creados: notifications, incidents, drugs, users
+
+### Próximos Pasos
+1. 📋 Validación final con el profesor (Sprint Review)
+2. 📋 Preparación de la DEMO final
+3. 📋 Tests unitarios para servicios (medication, notification, careRecord, cima, schedule) — opcional

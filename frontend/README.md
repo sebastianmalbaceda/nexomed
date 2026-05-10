@@ -1,73 +1,108 @@
-# React + TypeScript + Vite
+# NexoMed Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Interfaz web de gestión clínica hospitalaria — React 19 + Vite 8 + TypeScript
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+| Tecnología | Versión | Propósito |
+|-----------|---------|-----------|
+| React | 19 | Framework UI |
+| Vite | 8 | Build tool + dev server |
+| TypeScript | 5.9 | Tipado estático |
+| Tailwind CSS | 3.4 | Utilidades CSS |
+| Shadcn UI | latest | Componentes accesibles |
+| React Router DOM | v7 | Enrutamiento SPA |
+| TanStack Query | v5 | Cache + fetching |
+| Zustand | 5 | Estado global (auth) |
+| React Hook Form | latest | Formularios |
+| Zod | 4 | Validación de esquemas |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Inicio rápido
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Instalar dependencias
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Arrancar en desarrollo (puerto 5173)
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Build de producción
+npm run build
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Lint
+npm run lint
+
+# Tests
+npm run test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Variables de entorno
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+El archivo `.env` ya viene configurado. Variables disponibles:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Variable | Valor por defecto | Descripción |
+|----------|-------------------|-------------|
+| `VITE_API_URL` | `http://localhost:3000/api` | URL base de la API REST |
+| `VITE_BACKEND_URL` | `http://localhost:3000` | URL del backend para el proxy de Vite |
+
+---
+
+## Estructura
+
 ```
+src/app/
+├── components/
+│   ├── ui/            ← Shadcn UI (no modificar directamente)
+│   ├── hospital/      ← Componentes específicos (Sidebar, Header, etc.)
+│   ├── auth/          ← ProtectedRoute, AuthProvider
+│   └── ErrorBoundary.tsx
+├── pages/             ← 12 páginas (Login, Dashboard, Patients, Beds, etc.)
+├── hooks/             ← Custom hooks (useNotificationStream, etc.)
+├── store/             ← Zustand stores (authStore)
+└── lib/               ← api client, types, constants, utils
+```
+
+---
+
+## Rutas
+
+| Ruta | Componente | Roles |
+|------|-----------|-------|
+| `/login` | LoginPage | Público |
+| `/dashboard` | DashboardPage | Todos |
+| `/patients` | PatientsPage | DOCTOR, NURSE |
+| `/beds` | BedMapPage | Todos |
+| `/doctor` | DoctorPage | DOCTOR |
+| `/nurse` | NursePage | NURSE |
+| `/vitals` | TCAEPage | TCAE, NURSE |
+| `/notifications` | NotificationsPage | DOCTOR, NURSE |
+| `/tests` | DiagnosticTestsPage | DOCTOR, NURSE |
+| `/history` | UnifiedHistoryPage | DOCTOR, NURSE |
+| `/incidents` | IncidentsPage | Todos |
+| `/schedule` | NurseShiftSchedulePage | Todos |
+
+---
+
+## Convenciones
+
+- **Componentes**: PascalCase, un archivo por componente
+- **Hooks**: camelCase con prefijo `use`
+- **Formularios**: React Hook Form + Zod (nunca useState manual)
+- **Fetching**: TanStack Query (nunca useEffect + fetch)
+- **Estilos**: Solo clases Tailwind (sin CSS en línea)
+- **Imports**: Alias `@/` apunta a `src/app/`
+- **Tokens**: Almacenados en Zustand (memoria), nunca localStorage
+
+---
+
+## Credenciales de prueba
+
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| DOCTOR | dr.garcia@nexomed.es | password123 |
+| NURSE | enf.martinez@nexomed.es | password123 |
+| TCAE | tcae.sanchez@nexomed.es | password123 |

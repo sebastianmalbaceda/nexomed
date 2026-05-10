@@ -10,7 +10,7 @@
 ```
 Contexto del proyecto:
 - NexoMed: app web de gestión clínica hospitalaria
-- Stack: React 18 + TypeScript + Tailwind CSS + Shadcn UI + TanStack Query
+- Stack: React 19 + TypeScript + Tailwind CSS + Shadcn UI + TanStack Query
 - Convenciones: un archivo por componente, nombre PascalCase, hooks en hooks/, estado global en Zustand
 - Estilos: solo clases Tailwind, sin CSS en línea
 
@@ -187,7 +187,7 @@ Contexto:
 - Archivo: [ruta del archivo]
 - Qué estaba haciendo: [descripción de la acción]
 - Stack: [frontend React/Vite | backend Node.js/Express]
-- Versiones relevantes: React 18, Node 20, Prisma 5, PostgreSQL 15
+- Versiones relevantes: React 19, Node 20, Prisma 5, PostgreSQL 15
 
 Código relevante:
 [PEGAR FRAGMENTO DE CÓDIGO]

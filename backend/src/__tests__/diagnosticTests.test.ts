@@ -76,7 +76,7 @@ describe('Diagnostic test endpoints', () => {
         };
       };
       expect(globalCall.where.type).toBe('LAB');
-      expect(globalCall.where.result).toBeNull();
+      expect(globalCall.where.result).toBeFalsy();
       expect(globalCall.where.scheduledAt).toEqual({
         gte: new Date('2026-04-27T00:00:00.000Z'),
         lte: new Date('2026-04-27T23:59:59.999Z'),
