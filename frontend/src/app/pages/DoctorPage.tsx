@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Pill, Loader2, User, AlertCircle, Plus, X, Check,
@@ -17,18 +20,47 @@ const statusConfig: Record<string, { label: string; dot: string }> = {
   CRITICO: { label: 'Crítico', dot: 'bg-red-500' },
 };
 
+const ROUTE_OPTIONS = [
+  { value: 'oral', label: 'Oral' },
+  { value: 'IV', label: 'Intravenosa' },
+  { value: 'IM', label: 'Intramuscular' },
+  { value: 'SC', label: 'Subcutánea' },
+  { value: 'TOPICAL', label: 'Tópica' },
+];
+
+const prescriptionSchema = z.object({
+  drugName: z.string().min(1, 'El medicamento es obligatorio'),
+  nregistro: z.string().optional(),
+  dose: z.string().min(1, 'La dosis es obligatoria'),
+  route: z.enum(['oral', 'IV', 'IM', 'SC', 'TOPICAL', 'SUBCUTANEOUS', 'RECTAL', 'INHALED']),
+  frequencyHrs: z.number().int().positive('La frecuencia debe ser mayor que 0'),
+  startTime: z.string().min(1, 'La fecha de inicio es obligatoria'),
+});
+
+type PrescriptionForm = z.infer<typeof prescriptionSchema>;
+
 export default function DoctorPage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [drugName, setDrugName] = useState('');
-  const [nregistro, setNregistro] = useState('');
-  const [dose, setDose] = useState('');
-  const [route, setRoute] = useState('Oral');
-  const [frequencyHrs, setFrequencyHrs] = useState(8);
-  const [startTime, setStartTime] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PrescriptionForm>({
+    resolver: zodResolver(prescriptionSchema),
+    defaultValues: {
+      drugName: '',
+      nregistro: '',
+      dose: '',
+      route: 'oral',
+      frequencyHrs: 8,
+      startTime: '',
+    },
+  });
 
   const { data: patients = [], isLoading, isError } = useQuery({
     queryKey: ['patients'],
@@ -43,24 +75,18 @@ export default function DoctorPage() {
   });
 
   const prescriptionMutation = useMutation({
-    mutationFn: (body: {
-      patientId: string;
-      drugName: string;
-      nregistro?: string;
-      dose: string;
-      route: string;
-      frequencyHrs: number;
-      startTime: string;
-    }) => api.post<Medication>('/medications', body),
+    mutationFn: (body: PrescriptionForm & { patientId: string }) =>
+      api.post<Medication>('/medications', {
+        ...body,
+        startTime: new Date(body.startTime).toISOString(),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['medications', selectedId] });
-      setDrugName(''); setNregistro(''); setDose(''); setRoute('Oral');
-      setFrequencyHrs(8); setStartTime(''); setShowForm(false);
+      reset();
+      setShowForm(false);
       setSuccessMsg('Medicación prescrita correctamente');
-      setErrorMsg('');
       setTimeout(() => setSuccessMsg(''), 3000);
     },
-    onError: (e: Error) => { setErrorMsg(e.message); setSuccessMsg(''); },
   });
 
   const deactivateMutation = useMutation({
@@ -70,18 +96,9 @@ export default function DoctorPage() {
     },
   });
 
-  const handlePrescribe = () => {
-    if (!selectedId || !drugName.trim() || !dose.trim() || !startTime) return;
-    setErrorMsg('');
-    prescriptionMutation.mutate({
-      patientId: selectedId,
-      drugName: drugName.trim(),
-      nregistro: nregistro.trim() || undefined,
-      dose: dose.trim(),
-      route,
-      frequencyHrs,
-      startTime: new Date(startTime).toISOString(),
-    });
+  const onSubmit = (data: PrescriptionForm) => {
+    if (!selectedId) return;
+    prescriptionMutation.mutate({ ...data, patientId: selectedId });
   };
 
   const pendingMeds = medications.filter((m) => m.active).length;
@@ -128,7 +145,7 @@ export default function DoctorPage() {
                 return (
                   <li key={p.id}>
                     <button
-                      onClick={() => { setSelectedId(p.id); setErrorMsg(''); setSuccessMsg(''); setShowForm(false); }}
+                      onClick={() => { setSelectedId(p.id); setSuccessMsg(''); setShowForm(false); }}
                       className={`w-full text-left px-4 py-3 transition-all hover:bg-slate-50 border-l-4 ${isSelected ? 'bg-blue-50 border-blue-500' : hasAllergy ? 'border-red-300' : 'border-transparent'}`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -194,64 +211,58 @@ export default function DoctorPage() {
                 )}
 
                 {showForm && (
-                  <div className="p-5 space-y-3 border-t border-slate-100">
+                  <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-3 border-t border-slate-100">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
                       <Pill className="w-4 h-4 text-blue-500" />Nueva prescripción
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Medicamento *</label>
-                        <input type="text" placeholder="ej: Paracetamol 1g" value={drugName}
-                          onChange={(e) => setDrugName(e.target.value)}
+                        <input type="text" placeholder="ej: Paracetamol 1g" {...register('drugName')}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
+                        {errors.drugName && <p className="text-xs text-red-500 mt-1">{errors.drugName.message}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nº Registro (CIMA)</label>
-                        <input type="text" placeholder="ej: 12345" value={nregistro}
-                          onChange={(e) => setNregistro(e.target.value)}
+                        <input type="text" placeholder="ej: 12345" {...register('nregistro')}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Dosis *</label>
-                        <input type="text" placeholder="ej: 1 comprimido" value={dose}
-                          onChange={(e) => setDose(e.target.value)}
+                        <input type="text" placeholder="ej: 1 comprimido" {...register('dose')}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
+                        {errors.dose && <p className="text-xs text-red-500 mt-1">{errors.dose.message}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Vía administración</label>
-                        <select value={route} onChange={(e) => setRoute(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
-                          <option value="Oral">Oral</option>
-                          <option value="Intravenosa">Intravenosa</option>
-                          <option value="Intramuscular">Intramuscular</option>
-                          <option value="Subcutánea">Subcutánea</option>
-                          <option value="Tópica">Tópica</option>
+                        <select {...register('route')} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
+                          {ROUTE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                         </select>
+                        {errors.route && <p className="text-xs text-red-500 mt-1">{errors.route.message}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Frecuencia</label>
-                        <select value={frequencyHrs} onChange={(e) => setFrequencyHrs(Number(e.target.value))}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
+                        <select {...register('frequencyHrs', { valueAsNumber: true })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
                           {FREQ_OPTIONS.map((h) => <option key={h} value={h}>Cada {h} horas</option>)}
                         </select>
+                        {errors.frequencyHrs && <p className="text-xs text-red-500 mt-1">{errors.frequencyHrs.message}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Hora inicio *</label>
-                        <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                        <input type="datetime-local" {...register('startTime')}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
+                        {errors.startTime && <p className="text-xs text-red-500 mt-1">{errors.startTime.message}</p>}
                       </div>
                     </div>
-                    {errorMsg && <p className="text-xs text-red-600 font-medium">{errorMsg}</p>}
+                    {prescriptionMutation.isError && <p className="text-xs text-red-600 font-medium">{prescriptionMutation.error.message}</p>}
                     {successMsg && <p className="text-xs text-emerald-600 font-medium">{successMsg}</p>}
-                    <button
-                      onClick={handlePrescribe}
-                      disabled={!drugName.trim() || !dose.trim() || !startTime || prescriptionMutation.isPending}
+                    <button type="submit" disabled={prescriptionMutation.isPending}
                       className="flex items-center gap-2 bg-blue-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200"
                     >
                       {prescriptionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                       Confirmar prescripción
                     </button>
-                  </div>
+                  </form>
                 )}
               </div>
 
