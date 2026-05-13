@@ -7,6 +7,36 @@ y el proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [0.5.0] — 2026-05-13 — Auditoría de Seguridad y Estabilidad Final
+
+### Seguridad
+- JWT hardening: algoritmo HS256 explícito en `sign` y `verify` (prevención de auth confusion)
+- Eliminación de PII en endpoints públicos: `GET /api/beds` filtra campos sensibles (DNI, etc.)
+- Body parsing limitado a 100KB (prevención de DoS por payload masivo)
+- Variables de entorno: `SEED_PASSWORD` en `.env`, nunca hardcodeado en código fuente
+
+### Estabilidad
+- Atomicidad en medicación: creación y generación de horarios dentro de `prisma.$transaction`
+- Desactivación de medicación: elimina schedules pendientes antes de marcar `active: false`
+- Reschedule de horarios: solo borra schedules dentro de la ventana de tiempo recalculada
+- Manejo de race conditions: serialización de writes concurrentes en `CareRecord`
+- Error handling: captura de `PrismaClientValidationError` y throws no-Error en middleware
+
+### Refactorización Frontend
+- Migración de formularios complejos a **React Hook Form + Zod**:
+  - `LoginPage`, `IncidentsPage`, `DiagnosticTestsPage`, `DoctorPage`
+  - `NursePage` (registro de cuidados), `TCAEPage` (incidencias + constantes vitales)
+  - `PatientsPage` (ingreso + prescripción), `BedMapPage` (admisión desde mapa)
+- Alineación de enums frontend-backend: vías de medicación (`oral`, `IV`, `IM`, `SC`, `TOPICAL`)
+- Eliminación de estado muerto: campo `gender` en `BedMapPage` (no se enviaba al backend)
+
+### Tests
+- Suite completa: **43 tests pasando** (11 archivos), 0 fallos
+- Tests añadidos: notifications, incidents, drugs, users controllers
+- Corrección de tests existentes para usar enums válidos con validación Zod estricta
+
+---
+
 ## [0.4.0] — 2026-05 — Sprint 4 (Pulido Final)
 
 ### Añadido

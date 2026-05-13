@@ -290,21 +290,22 @@ DiagnosticTest { id, patientId, type, name, scheduledAt, status, result?, reques
 - **Evolutivos y notas de turno** (EVOLUTIVO, FIN_TURNO, TRASLADO, INCIDENCIA)
 - **Estado del paciente** (ESTABLE/MODERADO/CRITICO/OBSERVACION)
 - **Enfermero puede solicitar pruebas diagnósticas**
-- **Doctor no da de alta** — solo administración puede dar de alta
+- **Doctor puede dar de alta** — desde ficha del paciente y mapa de camas
 - Error Boundary en React (ErrorBoundary.tsx)
-- 21 tests de integración (7 archivos)
+- **43 tests de integración** (11 archivos, 100% pasando)
 - Swagger UI en `/api/docs`
 - Endpoint `GET /api/users/nurses`
 - Endpoint `GET /api/schedule` (agregación unificada)
+- **Auditoría de seguridad y estabilidad** — JWT hardening, PII filtering, atomicidad de medicación, enums alineados
 
-### 🔄 En Progreso
-- Tests adicionales: notifications, incidents, drugs, users controllers
-- Unit tests para servicios
+### ✅ Completado recientemente (Auditoría Final)
+- Tests adicionales: notifications, incidents, drugs, users controllers (todos pasando)
+- Refactorización de formularios a React Hook Form + Zod (Login, Incidents, DiagnosticTests, Doctor, Nurse, TCAE, Patients, BedMap)
+- Alertas visuales de restricciones para TCAE implementadas (TCAEPage con getRestrictions)
+- READMEs dedicados para frontend y backend creados
+- Preparación DEMO final completada
 
 ### 📋 Pendiente
-- Alertas visuales de restricciones para TCAE (campos en BD existentes, falta UI dedicada)
-- READMEs dedicados para frontend y backend
-- Preparación DEMO final
 - Validación final con el profesor
 
 ---

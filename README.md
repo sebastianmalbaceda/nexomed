@@ -29,7 +29,7 @@ NexoMed centraliza toda la gestión clínica (medicación, cuidados, historial, 
 
 | Capa | Tecnología |
 |------|-----------|
-| Frontend | React 18 + Vite + TypeScript |
+| Frontend | React 19 + Vite 8 + TypeScript 5.9 |
 | Estilos | Tailwind CSS + Shadcn UI + Lucide React |
 | Formularios | React Hook Form + Zod |
 | Estado global | Zustand |
@@ -53,7 +53,7 @@ NexoMed centraliza toda la gestión clínica (medicación, cuidados, historial, 
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/<org>/nexomed.git
+git clone https://github.com/sebastianmalbaceda/nexomed.git
 cd nexomed
 
 # Instalar dependencias — frontend

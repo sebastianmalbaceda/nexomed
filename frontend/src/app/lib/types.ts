@@ -74,6 +74,11 @@ export interface MedSchedule {
 
 export type CareRecordType =
   | 'constante'
+  | 'constante_tas'
+  | 'constante_tad'
+  | 'constante_fc'
+  | 'constante_temp'
+  | 'constante_spo2'
   | 'cura'
   | 'higiene'
   | 'balance'

@@ -228,7 +228,25 @@ _No hay bloqueadores activos en este momento._
 - ✅ memory/project_nexomed.md actualizado: Tailwind v3, estado completo del proyecto
 - ✅ 4 archivos de tests creados: notifications, incidents, drugs, users
 
+### Auditoría de Seguridad y Estabilidad (Mayo 2026) — ✅ COMPLETADA
+- ✅ JWT hardening: HS256 explícito, validación de tipos, prevención de auth confusion
+- ✅ PII filtering: campos sensibles eliminados de endpoints públicos (`/api/beds`)
+- ✅ Atomicidad en medicación: transacciones Prisma para creación + schedules
+- ✅ Corrección de race conditions: serialización en `CareRecord`, reschedule acotado
+- ✅ Error handling: captura de `PrismaClientValidationError`, manejo de throws no-Error
+- ✅ Límites de query: `take: 500` en endpoints sin paginación explícita
+- ✅ Body limits: 100KB en `express.json()` y `express.urlencoded()`
+- ✅ Refactorización de formularios: 8 páginas migradas a RHF + Zod con enums alineados
+- ✅ Eliminación de código muerto: campo `gender` en BedMapPage, estado huérfano
+- ✅ 43 tests pasando (11 archivos), 0 fallos — suite de integración completa
+
+### Estado Final del Proyecto
+**Sprint 4 — Pulido Final + Auditoría** ✅ COMPLETADO
+- Código compilable: frontend (`tsc -b && vite build`) y backend (`tsc`) sin errores
+- Tests: 43/43 passing (backend), lint limpio (frontend)
+- Documentación: README, SPEC, ARCHITECTURE, ROADMAP, CHANGELOG, AGENTS, PLANNING sincronizados
+- Preparado para: validación con el profesor y presentación DEMO
+
 ### Próximos Pasos
 1. 📋 Validación final con el profesor (Sprint Review)
-2. 📋 Preparación de la DEMO final
-3. 📋 Tests unitarios para servicios (medication, notification, careRecord, cima, schedule) — opcional
+2. 📋 Presentación DEMO final

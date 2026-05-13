@@ -11,7 +11,7 @@ NexoMed sigue una arquitectura **Cliente-Servidor desacoplada**, con una SPA (Si
 ```
 ┌──────────────────────────────────────┐
 │           NAVEGADOR (SPA)            │
-│   React 18 + Vite + TypeScript       │
+│   React 19 + Vite 8 + TypeScript 5.9 │
 │   Tailwind CSS + Shadcn UI           │
 │   TanStack Query + Zustand           │
 └────────────┬───────────────────────┘
@@ -119,7 +119,7 @@ Rutas comunes (con guard por rol):
 | Tecnología | Propósito |
 |-----------|-----------|
 | Node.js 20 | Runtime |
-| Express 4 | Framework REST |
+| Express 5 | Framework REST |
 | Prisma ORM | Modelado DB + migraciones |
 | jsonwebtoken | Tokens JWT por sesión |
 | bcrypt | Hash de contraseñas |
@@ -425,18 +425,24 @@ Se implementa mediante **SSE (Server-Sent Events)** y **polling activo** desde e
 - Estado del paciente (ESTABLE/MODERADO/CRITICO/OBSERVACION)
 - Enfermero puede solicitar pruebas diagnósticas
 - Error Boundary en React (ErrorBoundary.tsx)
-- 21 tests de integración (7 archivos)
+- **43 tests de integración** (11 archivos, 100% pasando)
 - Swagger UI en /api/docs
 - Endpoint GET /api/users/nurses
 - Endpoint GET /api/schedule (agregación unificada)
+- **Auditoría de seguridad y estabilidad completada**:
+  - JWT hardening (HS256 explícito, validación de tipos)
+  - PII filtering en endpoints públicos
+  - Atomicidad en operaciones de medicación (transacciones Prisma)
+  - Corrección de race conditions en care records
+  - Eliminación de código muerto y estado huérfano
 
-### 🔄 En Progreso
-- Tests de integración pendientes: notifications, incidents, drugs, users
-- Unit tests para services (medication, notification, careRecord, cima, schedule)
-- Pulido exhaustivo de UI/UX
-
-### 📋 Pendiente
-- Alertas de restricciones visuales para TCAE (datos en BD, falta UI dedicada)
+### ✅ Completado recientemente (Auditoría Final)
+- Tests de integración: notifications, incidents, drugs, users (todos pasando)
+- Unit tests básicos para services
+- Pulido exhaustivo de UI/UX — refactorización de formularios a RHF + Zod
+- Alertas de restricciones visuales para TCAE (TCAEPage con getRestrictions)
 - READMEs dedicados para frontend y backend
 - Preparación DEMO final
+
+### 📋 Pendiente
 - Validación final con profesor

@@ -50,7 +50,9 @@
 - [x] Pulido exhaustivo de UI/UX (refinamiento de todos los paneles)
 - [x] Testing integrado para flujos críticos — 43 tests pasando en 11 archivos
 - [x] Documentación técnica completa (Swagger API, READMEs)
-- [ ] Preparación de la DEMO final — pendiente de revisión con profesor
+- [x] Auditoría de seguridad y estabilidad — JWT hardening, PII filtering, atomicidad, race conditions
+- [x] Preparación de la DEMO final — proyecto validado end-to-end
+- [ ] Revisión final con el profesor
 
 ---
 
