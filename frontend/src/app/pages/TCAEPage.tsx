@@ -6,6 +6,14 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Patient, CareRecord, Medication, Incident } from '@/lib/types';
+import {
+  type BasicCarePayload,
+  buildBalanceCareRecord,
+  buildHygieneCareRecord,
+  buildIntakeCareRecord,
+  formatBasicCareRecord,
+  isBasicCareRecord,
+} from '@/lib/tcaeCare';
 
 const statusConfig: Record<string, { label: string; dot: string }> = {
   ESTABLE: { label: 'Estable', dot: 'bg-emerald-500' },
@@ -127,6 +135,15 @@ export default function TCAEPage() {
   const [incidentSuccess, setIncidentSuccess] = useState('');
   const [incidentError, setIncidentError] = useState('');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+  const [hygieneStatus, setHygieneStatus] = useState('Realizada');
+  const [hygieneNotes, setHygieneNotes] = useState('');
+  const [mealType, setMealType] = useState('Desayuno');
+  const [mealPercent, setMealPercent] = useState('75');
+  const [balanceIn, setBalanceIn] = useState('');
+  const [balanceOut, setBalanceOut] = useState('');
+  const [balanceNotes, setBalanceNotes] = useState('');
+  const [basicCareSuccess, setBasicCareSuccess] = useState('');
+  const [basicCareError, setBasicCareError] = useState('');
 
   const { data: patients = [], isLoading, isError } = useQuery({
     queryKey: ['patients'],
@@ -167,7 +184,30 @@ export default function TCAEPage() {
     },
   });
 
+  const basicCareMutation = useMutation({
+    mutationFn: (body: BasicCarePayload) => api.post<CareRecord>('/cares', body),
+    onSuccess: (_record, body) => {
+      qc.invalidateQueries({ queryKey: ['cares', selectedId] });
+      if (body.type === 'higiene') setHygieneNotes('');
+      if (body.type === 'balance') {
+        setBalanceIn('');
+        setBalanceOut('');
+        setBalanceNotes('');
+      }
+      setBasicCareSuccess('Cuidado registrado');
+      setBasicCareError('');
+      setTimeout(() => setBasicCareSuccess(''), 3000);
+    },
+    onError: (e: Error) => {
+      setBasicCareError(e.message);
+      setBasicCareSuccess('');
+    },
+  });
+
   const vitalGroups = groupByShift(careRecords);
+  const basicCareRecords = careRecords
+    .filter(isBasicCareRecord)
+    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
   const latestByType: Partial<Record<string, CareRecord>> = {};
   for (const r of careRecords) {
     if (r.type.startsWith('constante_') && !latestByType[r.type]) latestByType[r.type] = r;
@@ -210,7 +250,23 @@ export default function TCAEPage() {
     });
   }
 
+  function registerHygiene() {
+    if (!selectedId) return;
+    basicCareMutation.mutate(buildHygieneCareRecord(selectedId, hygieneStatus, hygieneNotes));
+  }
+
+  function registerIntake() {
+    if (!selectedId || !mealPercent.trim()) return;
+    basicCareMutation.mutate(buildIntakeCareRecord(selectedId, mealType, mealPercent));
+  }
+
+  function registerBalance() {
+    if (!selectedId || (!balanceIn.trim() && !balanceOut.trim())) return;
+    basicCareMutation.mutate(buildBalanceCareRecord(selectedId, balanceIn, balanceOut, balanceNotes));
+  }
+
   const hasValues = VITAL_FIELDS.some((f) => values[f.key]?.trim());
+  const hasBalanceValues = balanceIn.trim().length > 0 || balanceOut.trim().length > 0;
   const restrictions = selected ? getRestrictions(selected) : [];
 
   return (
@@ -424,6 +480,141 @@ export default function TCAEPage() {
                 </div>
               </div>
 
+              {/* TCAE-RF1: Basic care */}
+              <div className="bg-white border border-slate-200 border-t-4 border-t-emerald-400 rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <h3 className="font-black text-slate-900">Cuidados básicos</h3>
+                  <span className="ml-auto text-[10px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full">TCAE-RF1</span>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Higiene</p>
+                        <p className="text-xs text-slate-500 font-medium">Estado del aseo del turno</p>
+                      </div>
+                      <select
+                        value={hygieneStatus}
+                        onChange={(e) => setHygieneStatus(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                      >
+                        <option>Realizada</option>
+                        <option>Parcial</option>
+                        <option>Rechazada</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Observaciones"
+                        value={hygieneNotes}
+                        onChange={(e) => setHygieneNotes(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                      />
+                      <button
+                        onClick={registerHygiene}
+                        disabled={basicCareMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        {basicCareMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Registrar higiene
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Ingesta</p>
+                        <p className="text-xs text-slate-500 font-medium">Comida y porcentaje ingerido</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={mealType}
+                          onChange={(e) => setMealType(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                        >
+                          <option>Desayuno</option>
+                          <option>Comida</option>
+                          <option>Merienda</option>
+                          <option>Cena</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="%"
+                          value={mealPercent}
+                          onChange={(e) => setMealPercent(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                        />
+                      </div>
+                      <button
+                        onClick={registerIntake}
+                        disabled={!mealPercent.trim() || basicCareMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        {basicCareMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Registrar ingesta
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Balance</p>
+                        <p className="text-xs text-slate-500 font-medium">Entrada y salida aproximada</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Entrada ml"
+                          value={balanceIn}
+                          onChange={(e) => setBalanceIn(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Salida ml"
+                          value={balanceOut}
+                          onChange={(e) => setBalanceOut(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Observaciones"
+                        value={balanceNotes}
+                        onChange={(e) => setBalanceNotes(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-emerald-400/30"
+                      />
+                      <button
+                        onClick={registerBalance}
+                        disabled={!hasBalanceValues || basicCareMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        {basicCareMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Registrar balance
+                      </button>
+                    </div>
+                  </div>
+
+                  {basicCareSuccess && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-600 font-bold">
+                      <CheckCircle2 className="w-4 h-4" />{basicCareSuccess}
+                    </div>
+                  )}
+                  {basicCareError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                      <p className="text-xs text-red-600 flex items-center gap-1.5 font-medium">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />{basicCareError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Vitals form */}
               <div className="bg-white border border-slate-200 border-t-4 border-t-violet-400 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
@@ -492,10 +683,37 @@ export default function TCAEPage() {
                 <div className="p-5">
                   {loadingCares ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
-                  ) : vitalGroups.length === 0 ? (
-                    <p className="text-sm text-slate-400 font-medium">Sin constantes registradas</p>
+                  ) : vitalGroups.length === 0 && basicCareRecords.length === 0 ? (
+                    <p className="text-sm text-slate-400 font-medium">Sin constantes ni cuidados registrados</p>
                   ) : (
                     <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                      {basicCareRecords.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-wide">Cuidados básicos recientes</span>
+                            <span className="text-[10px] text-slate-400 font-bold">{basicCareRecords.length}</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {basicCareRecords.slice(0, 6).map((record) => {
+                              const item = formatBasicCareRecord(record);
+                              const dt = new Date(record.recordedAt);
+                              return (
+                                <div key={record.id} className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-[10px] text-emerald-700 font-black uppercase">{item.label}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold shrink-0">
+                                      {dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm font-black text-slate-900 mt-0.5">{item.detail}</p>
+                                  {record.notes && <p className="text-xs text-slate-500 font-medium mt-1">{record.notes}</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {vitalGroups.map((group) => (
                         <div key={group.shiftKey}>
                           <div className="flex items-center gap-2 mb-2">

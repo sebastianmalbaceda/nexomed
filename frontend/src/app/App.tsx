@@ -12,6 +12,7 @@ import BedMapPage from '@/pages/BedMapPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import DiagnosticTestsPage from '@/pages/DiagnosticTestsPage';
 import UnifiedHistoryPage from '@/pages/UnifiedHistoryPage';
+import DoctorPage from '@/pages/DoctorPage';
 import NursePage from '@/pages/NursePage';
 import TCAEPage from '@/pages/TCAEPage';
 import IncidentsPage from '@/pages/IncidentsPage';
@@ -68,7 +69,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard"     element={<DashboardPage />} />
-<Route path="/patients"          element={<PatientsPage />} />
+            <Route path="/doctor"        element={<DoctorPage />} />
+            <Route path="/patients"      element={<PatientsPage />} />
             <Route path="/patients/:patientId" element={<PatientsPage />} />
             <Route path="/beds"          element={<BedMapPage />} />
             <Route path="/nurse"         element={<NursePage />} />

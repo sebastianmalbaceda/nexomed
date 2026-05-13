@@ -5,12 +5,27 @@ import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity,
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Patient, Medication, CareRecord, VitalSigns, Bed } from '@/lib/types';
+import {
+  buildMedicationSchedulePayload,
+  findMedicationsMissingFromSchedule,
+  formatScheduleDetails,
+  formatScheduleTitle,
+  getScheduleStatusMeta,
+  summarizeScheduleItems,
+  type PatientScheduleItem,
+} from '@/lib/patientSchedule';
+import { normalizeCimaSearchResults, type CimaDrug, type CimaSearchResponse } from '@/lib/cima';
 
 // Computed once at module load — avoids impure Date.now() calls during render
 const NOW_MS = new Date().getTime();
 
 function ageFromDob(dob: string): number {
   return Math.floor((NOW_MS - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
+function completedByName(completedBy: PatientScheduleItem['completedBy']) {
+  if (!completedBy) return null;
+  return typeof completedBy === 'string' ? completedBy : completedBy.name;
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -39,7 +54,7 @@ export default function PatientsPage() {
 
   const { data: patientMedications = [] } = useQuery({
     queryKey: ['medications', patientId],
-    queryFn: () => api.get<Medication[]>(`/patients/${patientId}/medications`),
+    queryFn: () => api.get<Medication[]>(`/medications/${patientId}`),
     enabled: !!patientId,
   });
 
@@ -55,17 +70,28 @@ export default function PatientsPage() {
     enabled: !!patientId,
   });
 
+  const { data: patientSchedule = [], isLoading: loadingSchedule } = useQuery({
+    queryKey: ['patientSchedule', patientId],
+    queryFn: () => api.get<PatientScheduleItem[]>(`/schedule?patientId=${patientId}`),
+    enabled: !!patientId,
+  });
+
   const selectedPatient = patientId ? patients.find((p) => p.id === patientId) : null;
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const isDoctor = user?.role === 'DOCTOR';
+  const scheduleSummary = summarizeScheduleItems(patientSchedule);
+  const unscheduledMedications = findMedicationsMissingFromSchedule(patientMedications, patientSchedule);
 
   const [showStatusEdit, setShowStatusEdit] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [scheduleMedicationId, setScheduleMedicationId] = useState<string | null>(null);
+  const [scheduleStartTime, setScheduleStartTime] = useState(() => new Date().toISOString().slice(0, 16));
 
   // Formulario de medicación
   const [showMedForm, setShowMedForm] = useState(false);
+  const [medDrugSearch, setMedDrugSearch] = useState('');
   const [medForm, setMedForm] = useState({
     drugName: '',
     nregistro: '',
@@ -85,14 +111,33 @@ export default function PatientsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medications', selectedPatient!.id] });
       setShowMedForm(false);
+      setMedDrugSearch('');
       setMedForm({ drugName: '', nregistro: '', dose: '', route: '', frequencyHrs: 8, startTime: new Date().toISOString().slice(0, 16) });
     },
   });
 
+  const trimmedMedDrugSearch = medDrugSearch.trim();
+  const { data: patientCimaResponse, isFetching: loadingPatientCima, isError: patientCimaError } = useQuery({
+    queryKey: ['patient-cima-drugs', trimmedMedDrugSearch],
+    queryFn: () => api.get<CimaSearchResponse | CimaDrug[]>(`/drugs/search?q=${encodeURIComponent(trimmedMedDrugSearch)}`),
+    enabled: showMedForm && trimmedMedDrugSearch.length >= 3,
+    staleTime: 5 * 60 * 1000,
+  });
+  const patientCimaResults = patientCimaResponse ? normalizeCimaSearchResults(patientCimaResponse) : [];
+
+  const selectPatientCimaDrug = (drug: CimaDrug) => {
+    setMedDrugSearch(drug.nombre);
+    setMedForm((formState) => ({
+      ...formState,
+      drugName: drug.nombre,
+      nregistro: drug.nregistro,
+    }));
+  };
+
   const [dischargeError, setDischargeError] = useState('');
 
   const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setDischargeError('');
@@ -107,6 +152,17 @@ export default function PatientsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setShowStatusEdit(false);
+    },
+  });
+
+  const updateMedicationScheduleMutation = useMutation({
+    mutationFn: ({ medicationId, startTime }: { medicationId: string; startTime: string }) =>
+      api.put(`/medications/${medicationId}/schedule`, buildMedicationSchedulePayload(startTime)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSchedule', selectedPatient?.id] });
+      queryClient.invalidateQueries({ queryKey: ['medications', selectedPatient?.id] });
+      setScheduleMedicationId(null);
+      setScheduleStartTime(new Date().toISOString().slice(0, 16));
     },
   });
 
@@ -318,6 +374,47 @@ export default function PatientsPage() {
             )}
             {showMedForm && isDoctor && (
               <div className="space-y-3 pt-4 border-t border-border">
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-foreground mb-1">Buscar en CIMA</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="search"
+                      placeholder="Escribe al menos 3 caracteres, ej: paracetamol"
+                      value={medDrugSearch}
+                      onChange={(e) => setMedDrugSearch(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {loadingPatientCima && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-muted-foreground" />}
+                  </div>
+                  {trimmedMedDrugSearch.length > 0 && trimmedMedDrugSearch.length < 3 && (
+                    <p className="text-xs text-muted-foreground">Introduce 3 caracteres para buscar medicamentos.</p>
+                  )}
+                  {patientCimaError && (
+                    <p className="text-xs text-amber-600">No se pudo consultar CIMA. Puedes completar el medicamento manualmente.</p>
+                  )}
+                  {!loadingPatientCima && !patientCimaError && trimmedMedDrugSearch.length >= 3 && patientCimaResults.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Sin resultados en CIMA. Puedes escribir el medicamento manualmente.</p>
+                  )}
+                  {patientCimaResults.length > 0 && (
+                    <ul className="max-h-44 overflow-auto rounded-lg border border-border bg-background divide-y divide-border">
+                      {patientCimaResults.slice(0, 6).map((drug) => (
+                        <li key={drug.nregistro}>
+                          <button
+                            type="button"
+                            onClick={() => selectPatientCimaDrug(drug)}
+                            className="w-full text-left px-3 py-2 hover:bg-accent transition-colors"
+                          >
+                            <span className="block text-sm font-medium text-foreground">{drug.nombre}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              Reg. {drug.nregistro}{drug.labtitular ? ` · ${drug.labtitular}` : ''}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Fármaco *</label>
                   <input
@@ -436,6 +533,118 @@ export default function PatientsPage() {
               </ul>
             )}
           </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="flex flex-col gap-3 px-5 py-4 border-b border-border sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-foreground">Cronograma del paciente</h3>
+                <p className="text-xs text-muted-foreground">Tareas del día para medicación y cuidados</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">{scheduleSummary.total} tareas</span>
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">{scheduleSummary.pending} pendientes</span>
+              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">{scheduleSummary.delayed} retrasadas</span>
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">{scheduleSummary.completed} completadas</span>
+            </div>
+          </div>
+          {loadingSchedule ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : patientSchedule.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+              No hay tareas programadas ni cuidados registrados para hoy.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {patientSchedule.map((item) => {
+                const statusMeta = getScheduleStatusMeta(item.status);
+                const Icon = item.source === 'MEDICATION' ? Pill : Activity;
+                const byName = completedByName(item.completedBy);
+                return (
+                  <li key={`${item.source}-${item.id}`} className="px-5 py-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">{formatScheduleTitle(item)}</span>
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                            {statusMeta.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{formatScheduleDetails(item) || 'Sin detalle adicional'}</p>
+                        {byName && (
+                          <p className="text-xs text-muted-foreground mt-1">Realizado por {byName}</p>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {unscheduledMedications.length > 0 && (
+            <div className="border-t border-border bg-amber-50 px-5 py-4">
+              <p className="text-sm font-semibold text-amber-800">Medicación activa sin tareas programadas hoy</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Estos fármacos están activos en la pauta, pero no tienen horarios en el cronograma del día.
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {unscheduledMedications.map((medication) => (
+                  <li key={medication.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
+                    <span className="font-medium">{medication.drugName}</span>
+                    {isDoctor && scheduleMedicationId !== medication.id && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScheduleMedicationId(medication.id);
+                          setScheduleStartTime(new Date().toISOString().slice(0, 16));
+                        }}
+                        className="rounded-lg bg-amber-100 px-2 py-1 font-semibold text-amber-800 hover:bg-amber-200 transition-colors"
+                      >
+                        Asignar horario
+                      </button>
+                    )}
+                    {isDoctor && scheduleMedicationId === medication.id && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="datetime-local"
+                          value={scheduleStartTime}
+                          onChange={(event) => setScheduleStartTime(event.target.value)}
+                          className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateMedicationScheduleMutation.mutate({ medicationId: medication.id, startTime: scheduleStartTime })}
+                          disabled={!scheduleStartTime || updateMedicationScheduleMutation.isPending}
+                          className="rounded-lg bg-amber-600 px-2 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                        >
+                          {updateMedicationScheduleMutation.isPending ? 'Guardando...' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleMedicationId(null)}
+                          className="rounded-lg px-2 py-1 font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">

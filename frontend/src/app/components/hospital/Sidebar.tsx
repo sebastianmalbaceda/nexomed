@@ -1,50 +1,16 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  BedDouble,
-  Bell,
-  TestTube,
-  History,
-  Activity,
-  LogOut,
-  Building2,
-  ClipboardList,
-  Stethoscope,
-  Calendar,
-  AlertTriangle,
-  Users,
-} from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Activity, LogOut, Building2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/lib/constants';
-import type { Role } from '@/lib/types';
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  roles: Role[];
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',      label: 'Dashboard',            icon: LayoutDashboard, roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/beds',           label: 'Mapa de Camas',        icon: BedDouble,       roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  // Nurses navigate to patients from the bed map; doctors keep the list view
-  { to: '/patients',       label: 'Pacientes',            icon: Users,           roles: ['DOCTOR'] },
-  { to: '/nurse',          label: 'Vista Enfermero',      icon: ClipboardList,   roles: ['NURSE', 'DOCTOR'] },
-  { to: '/vitals',         label: 'Constantes Vitales',   icon: Stethoscope,     roles: ['TCAE', 'NURSE'] },
-  { to: '/notifications',  label: 'Notificaciones',       icon: Bell,            roles: ['NURSE', 'DOCTOR'] },
-  { to: '/tests',          label: 'Pruebas Diagnósticas', icon: TestTube,        roles: ['DOCTOR', 'NURSE'] },
-  { to: '/history',        label: 'Historial',            icon: History,         roles: ['NURSE', 'DOCTOR'] },
-  { to: '/schedule',       label: 'Turno y Horario',      icon: Calendar,        roles: ['NURSE', 'DOCTOR', 'TCAE'] },
-  { to: '/incidents',      label: 'Incidencias',          icon: AlertTriangle,   roles: ['NURSE', 'DOCTOR'] },
-];
+import { getVisibleNavItems, isNavItemActive } from './SidebarNav';
 
 export function Sidebar() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const role = user?.role ?? 'NURSE';
-  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const visibleItems = getVisibleNavItems(role);
 
   const handleLogout = () => {
     clearAuth();
@@ -53,7 +19,6 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full shrink-0">
-      {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary rounded-lg">
@@ -66,7 +31,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 p-4 overflow-y-auto">
         <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-2">
           Menú
@@ -78,9 +42,9 @@ export function Sidebar() {
               <li key={item.to}>
                 <NavLink
                   to={item.to}
-                  className={({ isActive }) =>
+                  className={() =>
                     `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
-                      isActive
+                      isNavItemActive(item.to, location.pathname, location.search)
                         ? 'bg-primary text-primary-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent'
                     }`
@@ -95,7 +59,6 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* User info + hospital info */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
         <div className="bg-sidebar-accent rounded-lg p-3 space-y-1">
           <div className="flex items-center gap-2">

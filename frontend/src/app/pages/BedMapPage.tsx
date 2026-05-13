@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BedDouble, Search, X, Activity, Loader2, UserPlus, Clock,
   ArrowRightLeft, Check, Pill, UserCheck, ExternalLink, LogOut,
@@ -8,6 +8,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Bed, Patient } from '@/lib/types';
+import { buildDoctorPrescriptionUrl } from '@/lib/prescriptionNavigation';
 
 const getPatientEmoji = (dobString: string) => {
   const age = new Date().getFullYear() - new Date(dobString).getFullYear();
@@ -36,9 +37,12 @@ type Tab = 'general' | 'my-patients';
 export default function BedMapPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const [activeTab, setActiveTab] = useState<Tab>(
+    searchParams.get('tab') === 'my-patients' && user?.role === 'NURSE' ? 'my-patients' : 'general',
+  );
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdmitForm, setShowAdmitForm] = useState(false);
@@ -54,6 +58,15 @@ export default function BedMapPage() {
     queryKey: ['beds'],
     queryFn: () => api.get<Bed[]>('/beds'),
   });
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'my-patients' && user?.role === 'NURSE') {
+      setActiveTab('my-patients');
+      return;
+    }
+
+    setActiveTab('general');
+  }, [searchParams, user?.role]);
 
   const roomsGrouped: RoomGroup[] = useMemo(() => {
     const map = new Map<number, Bed[]>();
@@ -143,7 +156,7 @@ export default function BedMapPage() {
   });
 
   const dischargeMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`),
+    mutationFn: (id: string) => api.put(`/patients/${id}/discharge`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['beds'] });
       qc.invalidateQueries({ queryKey: ['patients'] });
@@ -479,7 +492,10 @@ export default function BedMapPage() {
                     {/* Prescribe — doctor */}
                     {isDoctor && (
                       <button
-                        onClick={() => navigate(`/patients/${selectedBed.patient!.id}`)}
+                        onClick={() => {
+                          closePanel();
+                          navigate(buildDoctorPrescriptionUrl(selectedBed.patient!.id));
+                        }}
                         className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-100"
                       >
                         <Pill className="w-4 h-4" /> Pautar Medicación

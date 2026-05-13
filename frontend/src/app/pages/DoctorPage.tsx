@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   Pill, Loader2, User, AlertCircle, Plus, X, Check,
-  Trash2,
+  Trash2, Search,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Patient, Medication } from '@/lib/types';
+import { normalizeCimaSearchResults, type CimaDrug, type CimaSearchResponse } from '@/lib/cima';
 
 const FREQ_OPTIONS = [2, 4, 6, 8, 12, 24];
 
@@ -18,8 +20,10 @@ const statusConfig: Record<string, { label: string; dot: string }> = {
 
 export default function DoctorPage() {
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [drugSearch, setDrugSearch] = useState('');
   const [drugName, setDrugName] = useState('');
   const [nregistro, setNregistro] = useState('');
   const [dose, setDose] = useState('');
@@ -35,11 +39,30 @@ export default function DoctorPage() {
   });
   const selected = patients.find((p) => p.id === selectedId) ?? null;
 
+  useEffect(() => {
+    const patientId = searchParams.get('patientId');
+    if (!patientId || patients.length === 0) return;
+
+    if (patients.some((patient) => patient.id === patientId)) {
+      setSelectedId(patientId);
+      setShowForm(searchParams.get('prescribe') === '1');
+    }
+  }, [patients, searchParams]);
+
   const { data: medications = [], isLoading: loadingMeds } = useQuery({
     queryKey: ['medications', selectedId],
     queryFn: () => api.get<Medication[]>(`/medications/${selectedId}`),
     enabled: !!selectedId,
   });
+
+  const trimmedDrugSearch = drugSearch.trim();
+  const { data: cimaResponse, isFetching: loadingCima, isError: cimaError } = useQuery({
+    queryKey: ['cima-drugs', trimmedDrugSearch],
+    queryFn: () => api.get<CimaSearchResponse | CimaDrug[]>(`/drugs/search?q=${encodeURIComponent(trimmedDrugSearch)}`),
+    enabled: showForm && trimmedDrugSearch.length >= 3,
+    staleTime: 5 * 60 * 1000,
+  });
+  const cimaResults = cimaResponse ? normalizeCimaSearchResults(cimaResponse) : [];
 
   const prescriptionMutation = useMutation({
     mutationFn: (body: {
@@ -53,7 +76,7 @@ export default function DoctorPage() {
     }) => api.post<Medication>('/medications', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['medications', selectedId] });
-      setDrugName(''); setNregistro(''); setDose(''); setRoute('Oral');
+      setDrugSearch(''); setDrugName(''); setNregistro(''); setDose(''); setRoute('Oral');
       setFrequencyHrs(8); setStartTime(''); setShowForm(false);
       setSuccessMsg('Medicación prescrita correctamente');
       setErrorMsg('');
@@ -81,6 +104,12 @@ export default function DoctorPage() {
       frequencyHrs,
       startTime: new Date(startTime).toISOString(),
     });
+  };
+
+  const selectCimaDrug = (drug: CimaDrug) => {
+    setDrugSearch(drug.nombre);
+    setDrugName(drug.nombre);
+    setNregistro(drug.nregistro);
   };
 
   const pendingMeds = medications.filter((m) => m.active).length;
@@ -198,6 +227,47 @@ export default function DoctorPage() {
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
                       <Pill className="w-4 h-4 text-blue-500" />Nueva prescripción
                     </h3>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Buscar en CIMA</label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <input
+                          type="search"
+                          placeholder="Escribe al menos 3 caracteres, ej: paracetamol"
+                          value={drugSearch}
+                          onChange={(e) => setDrugSearch(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20"
+                        />
+                        {loadingCima && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-slate-400" />}
+                      </div>
+                      {trimmedDrugSearch.length > 0 && trimmedDrugSearch.length < 3 && (
+                        <p className="text-xs text-slate-400 font-medium">Introduce 3 caracteres para buscar medicamentos.</p>
+                      )}
+                      {cimaError && (
+                        <p className="text-xs text-amber-600 font-medium">No se pudo consultar CIMA. Puedes completar el medicamento manualmente.</p>
+                      )}
+                      {!loadingCima && !cimaError && trimmedDrugSearch.length >= 3 && cimaResults.length === 0 && (
+                        <p className="text-xs text-slate-400 font-medium">Sin resultados en CIMA. Puedes escribir el medicamento manualmente.</p>
+                      )}
+                      {cimaResults.length > 0 && (
+                        <ul className="max-h-44 overflow-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+                          {cimaResults.slice(0, 6).map((drug) => (
+                            <li key={drug.nregistro}>
+                              <button
+                                type="button"
+                                onClick={() => selectCimaDrug(drug)}
+                                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                              >
+                                <span className="block text-sm font-bold text-slate-800">{drug.nombre}</span>
+                                <span className="block text-xs text-slate-400">
+                                  Reg. {drug.nregistro}{drug.labtitular ? ` · ${drug.labtitular}` : ''}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Medicamento *</label>
