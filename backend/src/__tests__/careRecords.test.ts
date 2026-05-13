@@ -12,9 +12,15 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/cares', careRoutes);
 
 let nurseToken: string;
-let patientId: string;
+  let patientId: string;
 
-beforeAll(async () => {
+  beforeEach(async () => {
+    if (patientId) {
+      await prisma.careRecord.deleteMany({ where: { patientId } });
+    }
+  });
+
+  beforeAll(async () => {
   const loginRes = await request(app)
     .post('/api/auth/login')
     .send({ email: 'enf.martinez@nexomed.es', password: 'password123' });

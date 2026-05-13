@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle, Loader2, Plus, X, CheckCircle2, AlertCircle,
@@ -33,15 +36,35 @@ const INCIDENT_COLORS: Record<string, string> = {
   OTHER:           'bg-slate-100 text-slate-700 border-slate-200',
 };
 
+const incidentSchema = z.object({
+  patientId: z.string().min(1, 'Selecciona un paciente'),
+  type: z.enum(['MED_REFUSAL', 'CARE_INCIDENT', 'VOMIT_AFTER_MED', 'SIDE_EFFECT', 'FALL', 'OTHER']),
+  description: z.string().min(1, 'La descripción es obligatoria'),
+});
+
+type IncidentForm = z.infer<typeof incidentSchema>;
+
 export default function IncidentsPage() {
   const qc = useQueryClient();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
-  const [incidentType, setIncidentType] = useState('MED_REFUSAL');
-  const [incidentDesc, setIncidentDesc] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
   const [filterType, setFilterType] = useState<string>('');
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<IncidentForm>({
+    resolver: zodResolver(incidentSchema),
+    defaultValues: {
+      patientId: '',
+      type: 'MED_REFUSAL',
+      description: '',
+    },
+  });
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
@@ -58,22 +81,21 @@ export default function IncidentsPage() {
   });
 
   const incidentMutation = useMutation({
-    mutationFn: (body: { patientId: string; type: string; description: string }) =>
+    mutationFn: (body: IncidentForm) =>
       api.post<Incident>('/incidents', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['incidents', selectedPatientId] });
       qc.invalidateQueries({ queryKey: ['incidents'] });
-      setIncidentDesc('');
+      reset();
       setShowForm(false);
       setSuccessMsg('Incidencia registrada correctamente');
-      setErrorMsg('');
       setTimeout(() => setSuccessMsg(''), 3000);
     },
-    onError: (e: Error) => {
-      setErrorMsg(e.message);
-      setSuccessMsg('');
-    },
   });
+
+  const onSubmit = (data: IncidentForm) => {
+    incidentMutation.mutate(data);
+  };
 
   const filteredIncidents = allIncidents.filter(inc => {
     if (filterType && inc.type !== filterType) return false;
@@ -111,7 +133,10 @@ export default function IncidentsPage() {
         <div className="relative">
           <select
             value={selectedPatientId}
-            onChange={(e) => setSelectedPatientId(e.target.value)}
+            onChange={(e) => {
+              setSelectedPatientId(e.target.value);
+              setValue('patientId', e.target.value);
+            }}
             disabled={loadingPatients}
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-64"
           >
@@ -149,7 +174,7 @@ export default function IncidentsPage() {
       </div>
 
       {showForm && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             Registrar nueva incidencia
@@ -159,55 +184,52 @@ export default function IncidentsPage() {
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Paciente *</label>
               <select
-                value={selectedPatientId}
-                onChange={(e) => setSelectedPatientId(e.target.value)}
+                {...register('patientId')}
+                onChange={(e) => {
+                  setSelectedPatientId(e.target.value);
+                  setValue('patientId', e.target.value);
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30"
               >
                 <option value="">— Seleccionar paciente —</option>
                 {patients.map((p) => <option key={p.id} value={p.id}>{p.name} {p.surnames}</option>)}
               </select>
+              {errors.patientId && (
+                <p className="text-xs text-red-500 mt-1">{errors.patientId.message}</p>
+              )}
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tipo de incidencia *</label>
-              <select value={incidentType} onChange={(e) => setIncidentType(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30">
+              <select {...register('type')} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30">
                 {INCIDENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
+              {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Descripción *</label>
-              <input type="text" placeholder="Describe la incidencia..." value={incidentDesc}
-                onChange={(e) => setIncidentDesc(e.target.value)}
+              <input type="text" placeholder="Describe la incidencia..." {...register('description')}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 ring-red-400/30" />
+              {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>}
             </div>
           </div>
 
-          {errorMsg && (
+          {incidentMutation.isError && (
             <div className="flex items-center gap-2 text-sm text-red-600 font-bold mb-3">
-              <AlertCircle className="w-4 h-4" />{errorMsg}
-            </div>
+              <AlertCircle className="w-4 h-4" />{incidentMutation.error.message}</div>
           )}
 
           <button
-            onClick={() => {
-              if (!selectedPatientId || !incidentDesc.trim()) return;
-              setErrorMsg('');
-              incidentMutation.mutate({
-                patientId: selectedPatientId,
-                type: incidentType,
-                description: incidentDesc.trim(),
-              });
-            }}
-            disabled={!selectedPatientId || !incidentDesc.trim() || incidentMutation.isPending}
+            type="submit"
+            disabled={incidentMutation.isPending}
             className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-red-200"
           >
             {incidentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
             Guardar incidencia
           </button>
-        </div>
+        </form>
       )}
 
       {selectedPatient && (

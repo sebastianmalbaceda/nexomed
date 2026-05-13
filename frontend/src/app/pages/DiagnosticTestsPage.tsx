@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TestTube, FlaskConical, ImageIcon, Loader2, ChevronDown,
@@ -7,7 +10,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { parseAllergies, getAllergiesCount } from '@/lib/patientUtils';
-import type { Patient, DiagnosticTest, DiagnosticTestType } from '@/lib/types';
+import type { Patient, DiagnosticTest } from '@/lib/types';
 
 const STATUS_LABELS: Record<string, string> = {
   REQUESTED: 'Solicitada',
@@ -23,6 +26,15 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-emerald-100 text-emerald-700 border-emerald-300',
 };
 
+const scheduleSchema = z.object({
+  patientId: z.string().min(1, 'Selecciona un paciente'),
+  type: z.enum(['LAB', 'IMAGING']),
+  name: z.string().min(1, 'El nombre es obligatorio'),
+  scheduledAt: z.string().min(1, 'La fecha es obligatoria'),
+});
+
+type ScheduleForm = z.infer<typeof scheduleSchema>;
+
 export default function DiagnosticTestsPage() {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
@@ -32,10 +44,23 @@ export default function DiagnosticTestsPage() {
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
-  const [newType, setNewType] = useState<DiagnosticTestType>('LAB');
-  const [newName, setNewName] = useState('');
-  const [newDate, setNewDate] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<ScheduleForm>({
+    resolver: zodResolver(scheduleSchema),
+    defaultValues: {
+      patientId: '',
+      type: 'LAB',
+      name: '',
+      scheduledAt: '',
+    },
+  });
 
   const { data: patients = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
@@ -53,26 +78,23 @@ export default function DiagnosticTestsPage() {
   const pendingCount = allTests.filter((t) => !t.result).length;
 
   const scheduleMutation = useMutation({
-    mutationFn: (body: { patientId: string; type: string; name: string; scheduledAt: string }) =>
-      api.post<DiagnosticTest>('/tests', body),
+    mutationFn: (body: ScheduleForm) =>
+      api.post<DiagnosticTest>('/tests', {
+        ...body,
+        scheduledAt: new Date(body.scheduledAt).toISOString(),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests', selectedPatientId] });
-      setNewName(''); setNewDate('');
+      reset();
       setShowForm(false);
       setSuccessMsg('Prueba programada correctamente');
       setTimeout(() => setSuccessMsg(''), 3000);
     },
   });
 
-  function handleSchedule() {
-    if (!selectedPatientId || !newName.trim() || !newDate) return;
-    scheduleMutation.mutate({
-      patientId: selectedPatientId,
-      type: newType,
-      name: newName.trim(),
-      scheduledAt: new Date(newDate).toISOString(),
-    });
-  }
+  const onSubmit = (data: ScheduleForm) => {
+    scheduleMutation.mutate(data);
+  };
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
 
@@ -84,7 +106,7 @@ export default function DiagnosticTestsPage() {
         <p className="text-slate-500 text-sm font-medium mt-1">Visualización y programación de pruebas por paciente</p>
       </div>
 
-      {/* Stats — fully colored cards */}
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl bg-blue-500 p-5 text-white shadow-lg shadow-blue-100">
           <p className="text-blue-100 text-xs font-bold uppercase tracking-wide mb-1">Total pruebas</p>
@@ -113,7 +135,11 @@ export default function DiagnosticTestsPage() {
         <div className="relative">
           <select
             value={selectedPatientId}
-            onChange={(e) => { setSelectedPatientId(e.target.value); setShowForm(false); }}
+            onChange={(e) => {
+              setSelectedPatientId(e.target.value);
+              setValue('patientId', e.target.value);
+              setShowForm(false);
+            }}
             disabled={loadingPatients}
             className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-800 font-medium shadow-sm focus:outline-none focus:ring-2 ring-blue-500/20 disabled:opacity-60 min-w-64"
           >
@@ -140,9 +166,9 @@ export default function DiagnosticTestsPage() {
         )}
       </div>
 
-      {/* MED-RF3: Schedule form */}
+      {/* Schedule form */}
       {showForm && selectedPatientId && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" />
             Programar nueva prueba diagnóstica
@@ -150,32 +176,31 @@ export default function DiagnosticTestsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tipo</label>
-              <select value={newType} onChange={(e) => setNewType(e.target.value as DiagnosticTestType)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
+              <select {...register('type')} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20">
                 <option value="LAB">Laboratorio</option>
                 <option value="IMAGING">Diagnóstico por imagen</option>
               </select>
+              {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nombre *</label>
-              <input type="text" placeholder="ej: Hemograma, Rx Tórax..." value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+              <input type="text" placeholder="ej: Hemograma, Rx Tórax..." {...register('name')}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 ring-blue-500/20" />
+              {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Fecha programada *</label>
-              <input type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+              <input type="datetime-local" {...register('scheduledAt')}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-500/20" />
+              {errors.scheduledAt && <p className="text-xs text-red-500 mt-1">{errors.scheduledAt.message}</p>}
             </div>
           </div>
-          <button onClick={handleSchedule} disabled={!newName.trim() || !newDate || scheduleMutation.isPending}
+          <button type="submit" disabled={scheduleMutation.isPending}
             className="flex items-center gap-2 bg-blue-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200">
-            {scheduleMutation.isPending
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <CheckCircle2 className="w-4 h-4" />}
+            {scheduleMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
             Confirmar programación
           </button>
-        </div>
+        </form>
       )}
 
       {/* Patient info strip */}
