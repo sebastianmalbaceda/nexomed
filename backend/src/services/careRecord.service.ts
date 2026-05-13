@@ -31,6 +31,11 @@ export async function createCareRecordWithAntiDuplicate(
   recordedById: string
 ) {
   return prisma.$transaction(async (tx) => {
+    // Bloquear fila del paciente para prevenir condiciones de carrera
+    await tx.patient.findUnique({
+      where: { id: patientId },
+    });
+
     const fifteenMinutesAgo = new Date(Date.now() - ANTI_DUPLICATE_WINDOW_MS);
 
     const existingRecord = await tx.careRecord.findFirst({

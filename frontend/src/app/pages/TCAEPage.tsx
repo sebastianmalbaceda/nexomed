@@ -170,8 +170,10 @@ export default function TCAEPage() {
 
   const vitalGroups = groupByShift(careRecords);
   const latestByType: Partial<Record<string, CareRecord>> = {};
-  for (const r of careRecords) {
-    if (r.type.startsWith('constante_') && !latestByType[r.type]) latestByType[r.type] = r;
+  // Ordenar descendente para que la última iteración deje el registro más reciente
+  const sortedCareRecords = [...careRecords].sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  for (const r of sortedCareRecords) {
+    if (r.type.startsWith('constante_')) latestByType[r.type] = r;
   }
 
   const submitMutation = useMutation({

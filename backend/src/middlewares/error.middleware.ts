@@ -3,16 +3,17 @@ import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 
 export function errorHandler(
-  err: Error,
+  err: unknown,
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  console.error('[Global Error]', err);
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[Global Error]', error);
 
   // Prisma known errors
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (err.code) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
       case 'P2002':
         return res.status(409).json({ error: 'Conflicto: ya existe un registro con esos datos' });
       case 'P2025':
@@ -26,8 +27,13 @@ export function errorHandler(
     }
   }
 
+  // Prisma validation errors
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return res.status(400).json({ error: 'Datos inválidos: verifica los tipos y valores enviados' });
+  }
+
   // JWT errors
-  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+  if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 

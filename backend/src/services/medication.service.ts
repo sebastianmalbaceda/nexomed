@@ -7,6 +7,10 @@ export async function generateSchedulesForMedication(
   frequencyHrs: number,
   hoursToCover: number = 24
 ) {
+  if (!frequencyHrs || frequencyHrs <= 0) {
+    throw new Error('Frecuencia inválida: debe ser mayor que 0');
+  }
+
   const schedules = [];
   const endTime = new Date(startTime.getTime() + hoursToCover * 60 * 60 * 1000);
   let current = new Date(startTime);
@@ -32,6 +36,10 @@ export async function reschedulePendingMedication(
   frequencyHrs: number,
   hoursToCover: number = 24
 ) {
+  if (!frequencyHrs || frequencyHrs <= 0) {
+    throw new Error('Frecuencia inválida: debe ser mayor que 0');
+  }
+
   const schedules: { medicationId: string; scheduledAt: Date }[] = [];
   const endTime = new Date(newStartTime.getTime() + hoursToCover * 60 * 60 * 1000);
   let current = new Date(newStartTime);
@@ -45,10 +53,15 @@ export async function reschedulePendingMedication(
   }
 
   return prisma.$transaction(async (tx) => {
+    // Solo eliminar horarios pendientes del rango que vamos a regenerar
     await tx.medSchedule.deleteMany({
       where: {
         medicationId,
-        administeredAt: null
+        administeredAt: null,
+        scheduledAt: {
+          gte: newStartTime,
+          lte: endTime,
+        },
       }
     });
 

@@ -15,11 +15,16 @@ export interface AuthRequest extends Request {
 
 // Comprueba que el token JWT es válido
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1]; // "Bearer <token>"
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No hay token' });
+  }
+
+  const token = authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No hay token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string; name: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as { id: string; role: string; name: string };
     req.user = decoded; // guardamos el usuario en la request
     next();             // dejamos pasar
   } catch {

@@ -6,6 +6,7 @@ import { useNotificationStream } from '@/hooks/useNotificationStream';
 import { useNotificationToast } from '@/hooks/useNotificationToast';
 import { Sidebar } from '@/components/hospital/Sidebar';
 import { Header } from '@/components/hospital/Header';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
 import PatientsPage from '@/pages/PatientsPage';
@@ -30,9 +31,17 @@ const queryClient = new QueryClient({
 
 /** Full-page layout: sidebar + header + main content */
 function AppLayout() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hydrated } = useAuthStore();
   useNotificationStream();
   useNotificationToast();
+
+  if (!hydrated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -62,30 +71,32 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<LoginPage />} />
+        <ErrorBoundary>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected layout */}
-          <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><DashboardPage /></ProtectedRoute>} />
-            <Route path="/patients" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
-            <Route path="/patients/:patientId" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
-            <Route path="/beds" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><BedMapPage /></ProtectedRoute>} />
-            <Route path="/doctor" element={<ProtectedRoute allowedRoles={['DOCTOR']}><DoctorPage /></ProtectedRoute>} />
-            <Route path="/nurse" element={<ProtectedRoute allowedRoles={['NURSE']}><NursePage /></ProtectedRoute>} />
-            <Route path="/vitals" element={<ProtectedRoute allowedRoles={['TCAE', 'NURSE']}><TCAEPage /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><NotificationsPage /></ProtectedRoute>} />
-            <Route path="/tests" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><DiagnosticTestsPage /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><UnifiedHistoryPage /></ProtectedRoute>} />
-            <Route path="/incidents" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><IncidentsPage /></ProtectedRoute>} />
-            <Route path="/schedule" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><NurseShiftSchedulePage /></ProtectedRoute>} />
-          </Route>
+            {/* Protected layout */}
+            <Route element={<AppLayout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><DashboardPage /></ProtectedRoute>} />
+              <Route path="/patients" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
+              <Route path="/patients/:patientId" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><PatientsPage /></ProtectedRoute>} />
+              <Route path="/beds" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><BedMapPage /></ProtectedRoute>} />
+              <Route path="/doctor" element={<ProtectedRoute allowedRoles={['DOCTOR']}><DoctorPage /></ProtectedRoute>} />
+              <Route path="/nurse" element={<ProtectedRoute allowedRoles={['NURSE']}><NursePage /></ProtectedRoute>} />
+              <Route path="/vitals" element={<ProtectedRoute allowedRoles={['TCAE', 'NURSE']}><TCAEPage /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><NotificationsPage /></ProtectedRoute>} />
+              <Route path="/tests" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><DiagnosticTestsPage /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE']}><UnifiedHistoryPage /></ProtectedRoute>} />
+              <Route path="/incidents" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><IncidentsPage /></ProtectedRoute>} />
+              <Route path="/schedule" element={<ProtectedRoute allowedRoles={['DOCTOR', 'NURSE', 'TCAE']}><NurseShiftSchedulePage /></ProtectedRoute>} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -176,6 +176,7 @@ export const getPatientVitals = async (req: AuthRequest, res: Response) => {
     const records = await prisma.careRecord.findMany({
       where: { patientId },
       orderBy: { recordedAt: 'desc' },
+      take: 500,
     });
 
     const vitalTypes: Record<string, string> = {
@@ -194,7 +195,8 @@ export const getPatientVitals = async (req: AuthRequest, res: Response) => {
       }
       const entry = groupedByTime.get(key)!;
       const vitalKey = vitalTypes[record.type];
-      entry[vitalKey] = parseFloat(record.value) || null;
+      const parsed = parseFloat(record.value);
+      entry[vitalKey] = Number.isNaN(parsed) ? null : parsed;
     }
 
     const vitals = Array.from(groupedByTime.entries()).map(([recordedAt, values]) => ({

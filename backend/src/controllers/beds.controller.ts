@@ -9,7 +9,18 @@ import { handlePrismaError } from '../lib/errorHandler';
 export const getBeds = async (req: AuthRequest, res: Response) => {
   try {
     const beds = await prisma.bed.findMany({
-      include: { patient: true },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            surnames: true,
+            status: true,
+            diagnosis: true,
+            assignedNurseId: true,
+          },
+        },
+      },
       orderBy: [{ room: 'asc' }, { letter: 'asc' }]
     });
     res.json(beds);

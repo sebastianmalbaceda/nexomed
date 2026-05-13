@@ -74,13 +74,15 @@ export async function getScheduleItems(query: GetScheduleQuery) {
   const medicationSchedules = await prisma.medSchedule.findMany({
     where: {
       scheduledAt: { gte: range.start, lte: range.end },
-      medication:
-        query.patientId || query.nurseId
+      medication: {
+        active: true,
+        ...(query.patientId || query.nurseId
           ? {
               ...(query.patientId ? { patientId: query.patientId } : {}),
               ...(query.nurseId ? { patient: { assignedNurseId: query.nurseId } } : {}),
             }
-          : undefined,
+          : {}),
+      },
     },
     orderBy: { scheduledAt: 'asc' },
     include: {

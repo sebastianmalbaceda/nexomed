@@ -18,7 +18,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const response = await fetch(fullUrl, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(fullUrl, { ...options, headers });
+  } catch {
+    throw new Error('Error de conexión. Verifica que el servidor esté activo.');
+  }
 
   // Redirect to login on expired / invalid token
   if (response.status === 401) {

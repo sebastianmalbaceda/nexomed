@@ -18,6 +18,17 @@ import userRoutes from './routes/users.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
+
+// Validación rápida de variables esenciales al arrancar
+if (!process.env.DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL no está definida');
+  process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET no está definida');
+  process.exit(1);
+}
+
 const app = express();
 
 // CORS: solo permitir origen configurado (AGENTS.md rule)
@@ -28,7 +39,7 @@ const corsOptions = {
   credentials: true,
 };
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Swagger documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

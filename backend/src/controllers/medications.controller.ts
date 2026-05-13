@@ -63,25 +63,39 @@ export const createMedication = async (req: AuthRequest, res: Response) => {
       select: { name: true }
     });
 
-    const medication = await prisma.medication.create({
-      data: {
-        patientId,
-        drugName,
-        nregistro,
-        dose,
-        route,
-        frequencyHrs,
-        startTime: new Date(startTime),
-        prescribedById: req.user!.id
-      }
-    });
+    const medication = await prisma.$transaction(async (tx) => {
+      const med = await tx.medication.create({
+        data: {
+          patientId,
+          drugName,
+          nregistro,
+          dose,
+          route,
+          frequencyHrs,
+          startTime: new Date(startTime),
+          prescribedById: req.user!.id
+        }
+      });
 
-    await generateSchedulesForMedication(
-      medication.id,
-      new Date(startTime),
-      frequencyHrs,
-      24
-    );
+      // Generar horarios dentro de la misma transacción para atomicidad
+      const schedules = [];
+      const endTime = new Date(new Date(startTime).getTime() + 24 * 60 * 60 * 1000);
+      let current = new Date(startTime);
+
+      while (current < endTime) {
+        schedules.push({
+          medicationId: med.id,
+          scheduledAt: new Date(current)
+        });
+        current = new Date(current.getTime() + frequencyHrs * 60 * 60 * 1000);
+      }
+
+      if (schedules.length > 0) {
+        await tx.medSchedule.createMany({ data: schedules });
+      }
+
+      return med;
+    });
 
     await notifyNursesAboutMedicationChange(
       patientId,
@@ -109,9 +123,19 @@ export const deactivateMedication = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Medicación no encontrada' });
     }
 
-    const updated = await prisma.medication.update({
-      where: { id },
-      data: { active: false }
+    const updated = await prisma.$transaction(async (tx) => {
+      // Eliminar horarios pendientes de la medicación desactivada
+      await tx.medSchedule.deleteMany({
+        where: {
+          medicationId: id,
+          administeredAt: null,
+        },
+      });
+
+      return tx.medication.update({
+        where: { id },
+        data: { active: false }
+      });
     });
 
     await notifyNursesAboutMedicationChange(
@@ -179,18 +203,32 @@ export const administerSchedule = async (req: AuthRequest, res: Response) => {
   const { scheduleId } = req.params as { scheduleId: string };
   try {
     const schedule = await prisma.medSchedule.findUnique({
-      where: { id: scheduleId }
+      where: { id: scheduleId },
+      include: { medication: true }
     });
 
     if (!schedule) {
       return res.status(404).json({ error: 'Horario no encontrado' });
     }
 
-    // Validar que la dosis pertenece al turno actual
-    const scheduledHour = schedule.scheduledAt.getHours();
-    const currentHour = new Date().getHours();
+    if (!schedule.medication.active) {
+      return res.status(409).json({ error: 'La medicación está suspendida' });
+    }
 
-    if (getShift(scheduledHour) !== getShift(currentHour)) {
+    const now = new Date();
+    const scheduledDate = new Date(schedule.scheduledAt);
+
+    // Validar que la dosis corresponde al día actual
+    if (
+      scheduledDate.getFullYear() !== now.getFullYear() ||
+      scheduledDate.getMonth() !== now.getMonth() ||
+      scheduledDate.getDate() !== now.getDate()
+    ) {
+      return res.status(403).json({ error: 'Solo puedes administrar medicación programada para hoy' });
+    }
+
+    // Validar que la dosis pertenece al turno actual
+    if (getShift(scheduledDate.getHours()) !== getShift(now.getHours())) {
       return res.status(403).json({ error: 'Solo puedes administrar medicación de tu turno actual' });
     }
 
