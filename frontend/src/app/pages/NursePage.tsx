@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle, Loader2, User, Pill, ClipboardList,
@@ -25,6 +28,14 @@ const CARE_COLORS: Record<string, string> = {
   ingesta:   'bg-amber-100 text-amber-700 border-amber-200',
   constante: 'bg-blue-100 text-blue-700 border-blue-200',
 };
+
+const careSchema = z.object({
+  type: z.enum(['cura', 'higiene', 'balance', 'ingesta', 'constante'], { message: 'Tipo de cuidado no válido' }),
+  value: z.string().min(1, 'El valor es obligatorio'),
+  notes: z.string().optional(),
+});
+
+type CareForm = z.infer<typeof careSchema>;
 
 function shiftLabel(date: Date): string {
   const h = date.getHours();
@@ -81,13 +92,24 @@ function toMin(hhmm: string): number {
 export default function NursePage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [careType, setCareType] = useState('cura');
-  const [careValue, setCareValue] = useState('');
-  const [careNotes, setCareNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [editStartHour, setEditStartHour] = useState(8);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CareForm>({
+    resolver: zodResolver(careSchema),
+    defaultValues: {
+      type: 'cura',
+      value: '',
+      notes: '',
+    },
+  });
 
   const userId = useAuthStore((s) => s.user?.id);
   const { data: patients = [], isLoading, isError } = useQuery({
@@ -122,7 +144,7 @@ export default function NursePage() {
       api.post<CareRecord>('/cares', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cares', selectedId] });
-      setCareValue(''); setCareNotes('');
+      reset();
       setSuccessMsg('Cuidado registrado correctamente');
       setErrorMsg('');
       setTimeout(() => setSuccessMsg(''), 3000);
@@ -229,7 +251,7 @@ export default function NursePage() {
                 return (
                   <li key={p.id}>
                     <button
-                      onClick={() => { setSelectedId(p.id); setErrorMsg(''); setSuccessMsg(''); setCareValue(''); setEditingMedId(null); }}
+                      onClick={() => { setSelectedId(p.id); setErrorMsg(''); setSuccessMsg(''); reset(); setEditingMedId(null); }}
                       className={`w-full text-left px-4 py-3 transition-all hover:bg-slate-50 border-l-4 ${isSelected ? 'bg-blue-50 border-blue-500' : hasAllergy ? 'border-red-300' : 'border-transparent'}`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -320,6 +342,12 @@ export default function NursePage() {
                   )}
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{errorMsg}
+                </div>
+              )}
 
               {/* SYS-RF1 + ENF-RF2: Medication */}
               <div className="bg-white border border-slate-200 border-t-4 border-t-orange-400 rounded-2xl overflow-hidden shadow-sm">
@@ -475,35 +503,37 @@ export default function NursePage() {
                   <h3 className="font-black text-slate-900">Registrar cuidado</h3>
                   <span className="text-[10px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full ml-auto">Anti-dup. 15 min</span>
                 </div>
-                <div className="p-5 space-y-3">
+                <form onSubmit={handleSubmit((data) => {
+                  if (!selectedId) return;
+                  setErrorMsg('');
+                  careMutation.mutate({ patientId: selectedId, ...data, notes: data.notes?.trim() || undefined });
+                })} className="p-5 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tipo de cuidado</label>
-                      <select value={careType} onChange={(e) => setCareType(e.target.value)}
+                      <select {...register('type')}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-slate-300">
                         {CARE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
+                      {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type.message}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Valor / Descripción *</label>
-                      <input type="text" placeholder="ej: realizada, 72 bpm, 2000 ml..." value={careValue}
-                        onChange={(e) => setCareValue(e.target.value)}
+                      <input type="text" placeholder="ej: realizada, 72 bpm, 2000 ml..." {...register('value')}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 ring-slate-300" />
+                      {errors.value && <p className="text-xs text-red-500 mt-1">{errors.value.message}</p>}
                     </div>
                   </div>
-                  <input type="text" placeholder="Notas adicionales (opcional)" value={careNotes}
-                    onChange={(e) => setCareNotes(e.target.value)}
+                  <input type="text" placeholder="Notas adicionales (opcional)" {...register('notes')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 ring-slate-300" />
                   {successMsg && <div className="flex items-center gap-2 text-sm text-emerald-600 font-bold"><CheckCircle2 className="w-4 h-4" />{successMsg}</div>}
-                  {errorMsg && <div className="flex items-center gap-2 text-sm text-red-600 font-bold"><AlertCircle className="w-4 h-4" />{errorMsg}</div>}
-                  <button
-                    onClick={() => { if (!selectedId || !careValue.trim()) return; setErrorMsg(''); careMutation.mutate({ patientId: selectedId, type: careType, value: careValue.trim(), notes: careNotes.trim() || undefined }); }}
-                    disabled={!careValue.trim() || careMutation.isPending}
+                  {careMutation.isError && <div className="flex items-center gap-2 text-sm text-red-600 font-bold"><AlertCircle className="w-4 h-4" />{(careMutation.error as Error).message}</div>}
+                  <button type="submit" disabled={careMutation.isPending}
                     className="flex items-center gap-2 bg-slate-900 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                     {careMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                     Registrar cuidado
                   </button>
-                </div>
+                </form>
               </div>
 
               {/* History */}

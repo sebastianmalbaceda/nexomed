@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, AlertCircle, Loader2, Calendar, BedDouble, ArrowLeft, Activity, Pill, FileText, Clock, UserPlus, X, Check, LogOut, HeartPulse } from 'lucide-react';
@@ -21,6 +24,30 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
   MODERADO: { label: 'Moderado', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
   CRITICO: { label: 'Crítico', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
 };
+
+const medSchema = z.object({
+  drugName: z.string().min(1, 'El fármaco es obligatorio'),
+  nregistro: z.string().optional(),
+  dose: z.string().min(1, 'La dosis es obligatoria'),
+  route: z.enum(['oral', 'IV', 'IM', 'SC', 'TOPICAL', 'SUBCUTANEOUS', 'RECTAL', 'INHALED'], { message: 'Vía no válida' }),
+  frequencyHrs: z.number().int().positive('La frecuencia debe ser mayor que 0'),
+  startTime: z.string().min(1, 'La fecha de inicio es obligatoria'),
+});
+
+type MedForm = z.infer<typeof medSchema>;
+
+const admissionSchema = z.object({
+  dni: z.string().optional(),
+  name: z.string().min(1, 'El nombre es obligatorio'),
+  surnames: z.string().min(1, 'Los apellidos son obligatorios'),
+  dob: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
+  diagnosis: z.string().min(1, 'El diagnóstico es obligatorio'),
+  status: z.enum(['ESTABLE', 'OBSERVACION', 'MODERADO', 'CRITICO']),
+  bedId: z.string().optional(),
+  allergies: z.array(z.string()).optional(),
+});
+
+type AdmissionForm = z.infer<typeof admissionSchema>;
 
 export default function PatientsPage() {
   const { patientId } = useParams();
@@ -68,26 +95,34 @@ export default function PatientsPage() {
 
   // Formulario de medicación
   const [showMedForm, setShowMedForm] = useState(false);
-  const [medForm, setMedForm] = useState({
-    drugName: '',
-    nregistro: '',
-    dose: '',
-    route: '',
-    frequencyHrs: 8,
-    startTime: new Date().toISOString().slice(0, 16),
+  const {
+    register: registerMed,
+    handleSubmit: handleSubmitMed,
+    reset: resetMed,
+    formState: { errors: medErrors },
+  } = useForm<MedForm>({
+    resolver: zodResolver(medSchema),
+    defaultValues: {
+      drugName: '',
+      nregistro: '',
+      dose: '',
+      route: 'oral',
+      frequencyHrs: 8,
+      startTime: new Date().toISOString().slice(0, 16),
+    },
   });
 
   const createMedMutation = useMutation({
-    mutationFn: (data: typeof medForm & { patientId: string }) =>
+    mutationFn: (data: MedForm & { patientId: string }) =>
       api.post('/medications', {
         ...data,
         patientId: selectedPatient!.id,
-        frequencyHrs: Number(data.frequencyHrs),
+        startTime: new Date(data.startTime).toISOString(),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medications', selectedPatient!.id] });
       setShowMedForm(false);
-      setMedForm({ drugName: '', nregistro: '', dose: '', route: '', frequencyHrs: 8, startTime: new Date().toISOString().slice(0, 16) });
+      resetMed();
     },
   });
 
@@ -116,63 +151,89 @@ export default function PatientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [dniSearch, setDniSearch] = useState('');
   const [dniFound, setDniFound] = useState<Patient | null>(null);
-  const [form, setForm] = useState({
-    dni: '',
-    name: '',
-    surnames: '',
-    dob: '',
-    diagnosis: '',
-    status: 'ESTABLE' as string,
-    allergies: [] as string[],
-    bedId: '',
-  });
   const [allergyInput, setAllergyInput] = useState('');
+
+  const {
+    register: registerAdm,
+    handleSubmit: handleSubmitAdm,
+    reset: resetAdm,
+    setValue: setAdmValue,
+    watch: watchAdm,
+    formState: { errors: admErrors },
+  } = useForm<AdmissionForm>({
+    resolver: zodResolver(admissionSchema),
+    defaultValues: {
+      dni: '',
+      name: '',
+      surnames: '',
+      dob: '',
+      diagnosis: '',
+      status: 'ESTABLE',
+      bedId: '',
+      allergies: [],
+    },
+  });
+
+  const allergies = watchAdm('allergies') || [];
 
   const searchDniMutation = useMutation({
     mutationFn: (dni: string) => api.get<Patient>(`/patients/search?dni=${encodeURIComponent(dni)}`),
     onSuccess: (patient) => {
       setDniFound(patient);
-      setForm(f => ({
-        ...f,
+      resetAdm({
         dni: patient.dni ?? '',
         name: patient.name,
         surnames: patient.surnames ?? '',
-        dob: patient.dob,
+        dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         diagnosis: '',
-        status: patient.status ?? 'ESTABLE',
+        status: (patient.status as AdmissionForm['status']) ?? 'ESTABLE',
         allergies: parseAllergies(patient.allergies),
-      }));
+        bedId: '',
+      });
     },
     onError: () => {
       setDniFound(null);
-      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [] }));
+      resetAdm({
+        dni: dniSearch,
+        name: '',
+        surnames: '',
+        dob: '',
+        diagnosis: '',
+        status: 'ESTABLE',
+        allergies: [],
+        bedId: '',
+      });
     },
   });
 
   const [createError, setCreateError] = useState('');
 
   const createPatientMutation = useMutation({
-    mutationFn: (data: typeof form) => api.post('/patients', data),
+    mutationFn: (data: AdmissionForm) => api.post('/patients', {
+      ...data,
+      dob: new Date(data.dob).toISOString(),
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       setShowForm(false);
       setDniSearch('');
       setDniFound(null);
       setCreateError('');
-      setForm({ dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [], bedId: '' });
+      resetAdm();
     },
     onError: (e: Error) => setCreateError(e.message),
   });
 
   const handleAddAllergy = () => {
-    if (allergyInput.trim() && !form.allergies.includes(allergyInput.trim())) {
-      setForm(f => ({ ...f, allergies: [...f.allergies, allergyInput.trim()] }));
+    const trimmed = allergyInput.trim();
+    if (trimmed && !allergies.includes(trimmed)) {
+      setAdmValue('allergies', [...allergies, trimmed]);
       setAllergyInput('');
     }
   };
 
   const handleRemoveAllergy = (allergy: string) => {
-    setForm(f => ({ ...f, allergies: f.allergies.filter(a => a !== allergy) }));
+    setAdmValue('allergies', allergies.filter(a => a !== allergy));
   };
 
   const filtered = patients.filter((p) =>
@@ -320,83 +381,57 @@ export default function PatientsPage() {
               </ul>
             )}
             {showMedForm && isDoctor && (
-              <div className="space-y-3 pt-4 border-t border-border">
+              <form onSubmit={handleSubmitMed((data) => createMedMutation.mutate({ ...data, patientId: selectedPatient!.id }))} className="space-y-3 pt-4 border-t border-border">
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Fármaco *</label>
-                  <input
-                    type="text"
-                    placeholder="Nombre del fármaco"
-                    value={medForm.drugName}
-                    onChange={(e) => setMedForm(f => ({ ...f, drugName: e.target.value }))}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  <input type="text" placeholder="Nombre del fármaco" {...registerMed('drugName')}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  {medErrors.drugName && <p className="text-xs text-red-500 mt-1">{medErrors.drugName.message}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Nº Registro (opcional)</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 123456"
-                    value={medForm.nregistro}
-                    onChange={(e) => setMedForm(f => ({ ...f, nregistro: e.target.value }))}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  <input type="text" placeholder="Ej: 123456" {...registerMed('nregistro')}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">Dosis *</label>
-                    <input
-                      type="text"
-                      placeholder="Ej: 500mg"
-                      value={medForm.dose}
-                      onChange={(e) => setMedForm(f => ({ ...f, dose: e.target.value }))}
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <input type="text" placeholder="Ej: 500mg" {...registerMed('dose')}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    {medErrors.dose && <p className="text-xs text-red-500 mt-1">{medErrors.dose.message}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">Vía *</label>
-                    <select
-                      value={medForm.route}
-                      onChange={(e) => setMedForm(f => ({ ...f, route: e.target.value }))}
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="Oral">Oral</option>
-                      <option value="Intravenosa">Intravenosa</option>
-                      <option value="Subcutánea">Subcutánea</option>
-                      <option value="Intramuscular">Intramuscular</option>
-                      <option value="Tópica">Tópica</option>
+                    <select {...registerMed('route')} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                      <option value="oral">Oral</option>
+                      <option value="IV">Intravenosa</option>
+                      <option value="SC">Subcutánea</option>
+                      <option value="IM">Intramuscular</option>
+                      <option value="TOPICAL">Tópica</option>
                     </select>
+                    {medErrors.route && <p className="text-xs text-red-500 mt-1">{medErrors.route.message}</p>}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">Frecuencia (horas) *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={medForm.frequencyHrs}
-                      onChange={(e) => setMedForm(f => ({ ...f, frequencyHrs: Number(e.target.value) }))}
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <input type="number" min="1" {...registerMed('frequencyHrs', { valueAsNumber: true })}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    {medErrors.frequencyHrs && <p className="text-xs text-red-500 mt-1">{medErrors.frequencyHrs.message}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1">Inicio *</label>
-                    <input
-                      type="datetime-local"
-                      value={medForm.startTime}
-                      onChange={(e) => setMedForm(f => ({ ...f, startTime: e.target.value }))}
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <input type="datetime-local" {...registerMed('startTime')}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    {medErrors.startTime && <p className="text-xs text-red-500 mt-1">{medErrors.startTime.message}</p>}
                   </div>
                 </div>
-                <button
-                  onClick={() => createMedMutation.mutate({ ...medForm, patientId: selectedPatient!.id })}
-                  disabled={!medForm.drugName || !medForm.dose || !medForm.route || createMedMutation.isPending}
+                <button type="submit" disabled={createMedMutation.isPending}
                   className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {createMedMutation.isPending ? 'Prescribiendo...' : 'Prescribir Medicación'}
                 </button>
-              </div>
+              </form>
             )}
           </div>
 
@@ -508,17 +543,11 @@ export default function PatientsPage() {
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <label className="block text-sm font-medium text-foreground mb-1">DNI del paciente</label>
-              <input
-                type="text"
-                placeholder="Buscar por DNI..."
-                value={dniSearch}
+              <input type="text" placeholder="Buscar por DNI..." value={dniSearch}
                 onChange={(e) => setDniSearch(e.target.value)}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
-            <button
-              onClick={() => searchDniMutation.mutate(dniSearch)}
-              disabled={!dniSearch || searchDniMutation.isPending}
+            <button onClick={() => searchDniMutation.mutate(dniSearch)} disabled={!dniSearch || searchDniMutation.isPending}
               className="bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {searchDniMutation.isPending ? 'Buscando...' : 'Buscar'}
@@ -532,138 +561,104 @@ export default function PatientsPage() {
             <p className="text-sm text-green-600">✓ Paciente encontrado. Datos auto-rellenados (excepto diagnóstico).</p>
           )}
 
-          {/* Resto del formulario */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">DNI / NIE *</label>
-              <input
-                type="text"
-                value={form.dni}
-                onChange={(e) => setForm(f => ({ ...f, dni: e.target.value }))}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-                readOnly={!!dniFound}
-              />
+          <form onSubmit={handleSubmitAdm((data) => createPatientMutation.mutate(data))}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">DNI / NIE *</label>
+                <input type="text" {...registerAdm('dni')} readOnly={!!dniFound}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
+                {admErrors.dni && <p className="text-xs text-red-500 mt-1">{admErrors.dni.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Nombre *</label>
+                <input type="text" {...registerAdm('name')} readOnly={!!dniFound}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
+                {admErrors.name && <p className="text-xs text-red-500 mt-1">{admErrors.name.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Apellidos *</label>
+                <input type="text" {...registerAdm('surnames')} readOnly={!!dniFound}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
+                {admErrors.surnames && <p className="text-xs text-red-500 mt-1">{admErrors.surnames.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Fecha de nacimiento *</label>
+                <input type="date" {...registerAdm('dob')} readOnly={!!dniFound}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
+                {admErrors.dob && <p className="text-xs text-red-500 mt-1">{admErrors.dob.message}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">Diagnóstico actual *</label>
+                <input type="text" placeholder="Diagnóstico del ingreso actual..." {...registerAdm('diagnosis')}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring" />
+                {admErrors.diagnosis && <p className="text-xs text-red-500 mt-1">{admErrors.diagnosis.message}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">Estado clínico *</label>
+                <select {...registerAdm('status')} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="ESTABLE">Estable</option>
+                  <option value="OBSERVACION">En observación</option>
+                  <option value="MODERADO">Moderado</option>
+                  <option value="CRITICO">Crítico</option>
+                </select>
+                {admErrors.status && <p className="text-xs text-red-500 mt-1">{admErrors.status.message}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">Asignar cama (opcional)</label>
+                <select {...registerAdm('bedId')} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="">Sin asignar</option>
+                  {freeBeds.map(b => (
+                    <option key={b.id} value={b.id}>Hab. {b.room} — Cama {b.letter} (Planta {b.floor})</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Nombre *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-                readOnly={!!dniFound}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Apellidos *</label>
-              <input
-                type="text"
-                value={form.surnames}
-                onChange={(e) => setForm(f => ({ ...f, surnames: e.target.value }))}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-                readOnly={!!dniFound}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Fecha de nacimiento *</label>
-              <input
-                type="date"
-                value={form.dob ? new Date(form.dob).toISOString().split('T')[0] : ''}
-                onChange={(e) => setForm(f => ({ ...f, dob: new Date(e.target.value).toISOString() }))}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-                readOnly={!!dniFound}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-1">Diagnóstico actual *</label>
-              <input
-                type="text"
-                placeholder="Diagnóstico del ingreso actual..."
-                value={form.diagnosis}
-                onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-1">Estado clínico *</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="ESTABLE">Estable</option>
-                <option value="OBSERVACION">En observación</option>
-                <option value="MODERADO">Moderado</option>
-                <option value="CRITICO">Crítico</option>
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-1">Asignar cama (opcional)</label>
-              <select
-                value={form.bedId}
-                onChange={(e) => setForm(f => ({ ...f, bedId: e.target.value || '' }))}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Sin asignar</option>
-                {freeBeds.map(b => (
-                  <option key={b.id} value={b.id}>Hab. {b.room} — Cama {b.letter} (Planta {b.floor})</option>
+
+            {/* Alergias */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-foreground mb-1">Alergias</label>
+              <div className="flex items-end gap-2 mb-2">
+                <input type="text" placeholder="Añadir alergia..." value={allergyInput}
+                  onChange={(e) => setAllergyInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAllergy(); } }}
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <button type="button" onClick={handleAddAllergy}
+                  className="bg-secondary text-secondary-foreground text-sm px-3 py-2 rounded-lg hover:bg-secondary/90 transition-colors"
+                >
+                  Añadir
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {allergies.map(a => (
+                  <span key={a} className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+                    {a}
+                    <button type="button" onClick={() => handleRemoveAllergy(a)} className="hover:text-destructive/70"><X className="w-3 h-3" /></button>
+                  </span>
                 ))}
-              </select>
+                {allergies.length === 0 && <span className="text-xs text-muted-foreground">Sin alergias</span>}
+              </div>
             </div>
-          </div>
 
-          {/* Alergias */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Alergias</label>
-            <div className="flex items-end gap-2 mb-2">
-              <input
-                type="text"
-                placeholder="Añadir alergia..."
-                value={allergyInput}
-                onChange={(e) => setAllergyInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAllergy(); } }}
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <button
-                onClick={handleAddAllergy}
-                className="bg-secondary text-secondary-foreground text-sm px-3 py-2 rounded-lg hover:bg-secondary/90 transition-colors"
+            {createError && (
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm flex items-center gap-2 mt-4">
+                <AlertCircle className="w-4 h-4 shrink-0" />{createError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-border">
+              <button type="button" onClick={() => { setShowForm(false); }}
+                className="text-sm px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
               >
-                Añadir
+                Cancelar
               </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {form.allergies.map(a => (
-                <span key={a} className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
-                  {a}
-                  <button onClick={() => handleRemoveAllergy(a)} className="hover:text-destructive/70"><X className="w-3 h-3" /></button>
-                </span>
-              ))}
-              {form.allergies.length === 0 && <span className="text-xs text-muted-foreground">Sin alergias</span>}
-            </div>
-          </div>
-
-          {createError && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />{createError}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <button
-              onClick={() => { setShowForm(false); }}
-              className="text-sm px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
-            >
-              Cancelar
-            </button>
-              <button
-                onClick={() => createPatientMutation.mutate(form)}
-                disabled={!form.name || !form.surnames || !form.dob || !form.diagnosis || !form.dni || createPatientMutation.isPending}
+              <button type="submit" disabled={createPatientMutation.isPending}
                 className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-              <Check className="w-4 h-4" />
-              {createPatientMutation.isPending ? 'Registrando...' : dniFound ? 'Re-ingreso' : 'Registrar ingreso'}
-            </button>
-          </div>
+                <Check className="w-4 h-4" />
+                {createPatientMutation.isPending ? 'Registrando...' : dniFound ? 'Re-ingreso' : 'Registrar ingreso'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

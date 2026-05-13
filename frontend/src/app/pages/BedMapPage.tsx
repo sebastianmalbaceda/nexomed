@@ -1,4 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -28,11 +31,21 @@ const getStatusStyles = (status: string) => {
   return statusMap[status] ?? { border: 'border-l-emerald-400', badge: 'bg-emerald-400', text: 'ESTABLE', bg: 'bg-emerald-50/30' };
 };
 
-const EMPTY_FORM = { dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [] as string[], gender: '' };
-
 interface RoomGroup { room: number; beds: Bed[] }
 
 type Tab = 'general' | 'my-patients';
+
+const admitSchema = z.object({
+  dni: z.string().min(1, 'El DNI es obligatorio'),
+  name: z.string().min(1, 'El nombre es obligatorio'),
+  surnames: z.string().min(1, 'Los apellidos son obligatorios'),
+  dob: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
+  diagnosis: z.string().min(1, 'El diagnóstico es obligatorio'),
+  status: z.enum(['ESTABLE', 'OBSERVACION', 'MODERADO', 'CRITICO']),
+  allergiesText: z.string().optional(),
+});
+
+type AdmitForm = z.infer<typeof admitSchema>;
 
 export default function BedMapPage() {
   const { user } = useAuthStore();
@@ -43,13 +56,24 @@ export default function BedMapPage() {
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdmitForm, setShowAdmitForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
   const [admitError, setAdmitError] = useState('');
   const [dniSearch, setDniSearch] = useState('');
   const [dniFound, setDniFound] = useState<Patient | null>(null);
   const [showRelocateModal, setShowRelocateModal] = useState(false);
   const [relocateTarget, setRelocateTarget] = useState<string | null>(null);
   const [relocateError, setRelocateError] = useState('');
+
+  const {
+    register: registerAdmit,
+    handleSubmit: handleSubmitAdmit,
+    reset: resetAdmit,
+    formState: { errors: admitErrors },
+  } = useForm<AdmitForm>({
+    resolver: zodResolver(admitSchema),
+    defaultValues: {
+      dni: '', name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergiesText: '',
+    },
+  });
 
   const { data: beds = [], isLoading } = useQuery({
     queryKey: ['beds'],
@@ -96,16 +120,17 @@ export default function BedMapPage() {
   );
 
   const admitMutation = useMutation({
-    mutationFn: async (bedId: string) => {
+    mutationFn: async (payload: AdmitForm & { bedId: string }) => {
+      const allergies = payload.allergiesText ? payload.allergiesText.split(',').map(s => s.trim()).filter(Boolean) : [];
       return api.post<Patient>('/patients', {
-        dni: form.dni.trim(),
-        name: form.name.trim(),
-        surnames: form.surnames.trim(),
-        dob: new Date(form.dob).toISOString(),
-        diagnosis: form.diagnosis.trim(),
-        status: form.status,
-        allergies: form.allergies,
-        bedId,
+        dni: payload.dni.trim(),
+        name: payload.name.trim(),
+        surnames: payload.surnames.trim(),
+        dob: new Date(payload.dob).toISOString(),
+        diagnosis: payload.diagnosis.trim(),
+        status: payload.status,
+        allergies,
+        bedId: payload.bedId,
       });
     },
     onSuccess: () => {
@@ -113,7 +138,7 @@ export default function BedMapPage() {
       qc.invalidateQueries({ queryKey: ['patients'] });
       setSelectedBed(null);
       setShowAdmitForm(false);
-      setForm(EMPTY_FORM);
+      resetAdmit();
       setAdmitError('');
       setDniSearch('');
       setDniFound(null);
@@ -125,20 +150,27 @@ export default function BedMapPage() {
     mutationFn: (dni: string) => api.get<Patient>(`/patients/search?dni=${encodeURIComponent(dni)}`),
     onSuccess: (patient) => {
       setDniFound(patient);
-      setForm(f => ({
-        ...f,
+      resetAdmit({
         dni: patient.dni ?? '',
         name: patient.name,
         surnames: patient.surnames ?? '',
         dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         diagnosis: '',
-        status: patient.status ?? 'ESTABLE',
-        allergies: patient.allergies ?? [],
-      }));
+        status: (patient.status as AdmitForm['status']) ?? 'ESTABLE',
+        allergiesText: (patient.allergies ?? []).join(', '),
+      });
     },
     onError: () => {
       setDniFound(null);
-      setForm(f => ({ ...f, dni: dniSearch, name: '', surnames: '', dob: '', diagnosis: '', status: 'ESTABLE', allergies: [], gender: '' }));
+      resetAdmit({
+        dni: dniSearch,
+        name: '',
+        surnames: '',
+        dob: '',
+        diagnosis: '',
+        status: 'ESTABLE',
+        allergiesText: '',
+      });
     },
   });
 
@@ -222,6 +254,7 @@ export default function BedMapPage() {
     setShowRelocateModal(false);
     setDniSearch('');
     setDniFound(null);
+    resetAdmit();
   };
 
   return (
@@ -534,22 +567,17 @@ export default function BedMapPage() {
                   )}
 
                   {canAdmit && showAdmitForm && (
-                    <div className="space-y-3">
+                    <form onSubmit={handleSubmitAdmit((data) => { if (selectedBed) admitMutation.mutate({ ...data, bedId: selectedBed.id }); })} className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-4">Datos del paciente</p>
 
                       {/* DNI Search */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Buscar por DNI</label>
                         <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="123456789"
-                            value={dniSearch}
+                          <input type="text" placeholder="123456789" value={dniSearch}
                             onChange={(e) => setDniSearch(e.target.value)}
-                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300"
-                          />
-                          <button
-                            onClick={() => searchDniMutation.mutate(dniSearch)}
+                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
+                          <button type="button" onClick={() => searchDniMutation.mutate(dniSearch)}
                             disabled={!dniSearch || searchDniMutation.isPending}
                             className="px-4 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all disabled:opacity-50 flex items-center gap-1"
                           >
@@ -567,102 +595,74 @@ export default function BedMapPage() {
                       )}
 
                       <div>
-                         <label className="block text-xs font-bold text-slate-500 mb-1">DNI / NIE *</label>
-                        <input
-                          type="text"
-                          placeholder="123456789"
-                          value={form.dni}
-                          onChange={(e) => setForm(f => ({ ...f, dni: e.target.value }))}
-                          readOnly={!!dniFound}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
-                        />
+                        <label className="block text-xs font-bold text-slate-500 mb-1">DNI / NIE *</label>
+                        <input type="text" placeholder="123456789" {...registerAdmit('dni')} readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60" />
+                        {admitErrors.dni && <p className="text-xs text-red-500 mt-1">{admitErrors.dni.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nombre *</label>
-                        <input
-                          type="text"
-                          placeholder="Nombre"
-                          value={form.name}
-                          onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                          readOnly={!!dniFound}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
-                        />
+                        <input type="text" placeholder="Nombre" {...registerAdmit('name')} readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60" />
+                        {admitErrors.name && <p className="text-xs text-red-500 mt-1">{admitErrors.name.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Apellidos *</label>
-                        <input
-                          type="text"
-                          placeholder="Apellidos"
-                          value={form.surnames}
-                          onChange={(e) => setForm(f => ({ ...f, surnames: e.target.value }))}
-                          readOnly={!!dniFound}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60"
-                        />
+                        <input type="text" placeholder="Apellidos" {...registerAdmit('surnames')} readOnly={!!dniFound}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300 disabled:opacity-60" />
+                        {admitErrors.surnames && <p className="text-xs text-red-500 mt-1">{admitErrors.surnames.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de nacimiento *</label>
-                        <input type="date" value={form.dob} onChange={(e) => setForm(f => ({ ...f, dob: e.target.value }))}
+                        <input type="date" {...registerAdmit('dob')}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Género *</label>
-                        <select value={form.gender} onChange={(e) => setForm(f => ({ ...f, gender: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300">
-                          <option value="">-- Seleccionar --</option>
-                          <option value="Mujer">Mujer</option>
-                          <option value="Hombre">Hombre</option>
-                          <option value="Otro">Otro</option>
-                        </select>
+                        {admitErrors.dob && <p className="text-xs text-red-500 mt-1">{admitErrors.dob.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Diagnóstico *</label>
-                        <input type="text" placeholder="Diagnóstico principal" value={form.diagnosis}
-                          onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))}
+                        <input type="text" placeholder="Diagnóstico principal" {...registerAdmit('diagnosis')}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
+                        {admitErrors.diagnosis && <p className="text-xs text-red-500 mt-1">{admitErrors.diagnosis.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Estado clínico *</label>
-                        <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                        <select {...registerAdmit('status')}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300">
                           <option value="ESTABLE">Estable</option>
                           <option value="OBSERVACION">En observación</option>
                           <option value="MODERADO">Moderado</option>
                           <option value="CRITICO">Crítico</option>
                         </select>
+                        {admitErrors.status && <p className="text-xs text-red-500 mt-1">{admitErrors.status.message}</p>}
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Alergias (separadas por coma)</label>
-                        <input type="text" placeholder="penicilina, ibuprofeno..." value={form.allergies.join(', ')}
-                          onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                        <input type="text" placeholder="penicilina, ibuprofeno..." {...registerAdmit('allergiesText')}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-slate-300" />
                       </div>
 
                       {admitError && <p className="text-xs text-red-600 font-medium">{admitError}</p>}
 
                       <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => admitMutation.mutate(selectedBed.id)}
-                          disabled={!form.dni.trim() || !form.name.trim() || !form.surnames.trim() || !form.dob || !form.diagnosis.trim() || !form.gender || admitMutation.isPending}
+                        <button type="submit" disabled={admitMutation.isPending}
                           className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50"
                         >
                           {admitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                           Confirmar
                         </button>
-                        <button
-                          onClick={() => { setShowAdmitForm(false); setForm(EMPTY_FORM); setAdmitError(''); }}
+                        <button type="button" onClick={() => { setShowAdmitForm(false); resetAdmit(); setAdmitError(''); }}
                           className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
                         >
                           Cancelar
                         </button>
                       </div>
-                    </div>
+                    </form>
                   )}
                 </div>
               )}

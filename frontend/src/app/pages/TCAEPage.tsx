@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Activity, AlertCircle, AlertTriangle, CheckCircle2, Loader2, Clock,
@@ -116,18 +119,53 @@ const INCIDENT_TYPES = [
   { value: 'OTHER',           label: 'Otro incidente' },
 ];
 
+const incidentSchema = z.object({
+  type: z.enum(['MED_REFUSAL', 'VOMIT_AFTER_MED', 'SIDE_EFFECT', 'FALL', 'OTHER'], { message: 'Tipo de incidencia no válido' }),
+  description: z.string().min(1, 'La descripción es obligatoria'),
+});
+
+type IncidentForm = z.infer<typeof incidentSchema>;
+
+const vitalsSchema = z.object({
+  constante_fc: z.string().optional(),
+  constante_tas: z.string().optional(),
+  constante_tad: z.string().optional(),
+  constante_temp: z.string().optional(),
+  constante_spo2: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type VitalsForm = z.infer<typeof vitalsSchema>;
+
 export default function TCAEPage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [values, setValues] = useState<Partial<Record<VitalKey, string>>>({});
-  const [notes, setNotes] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
-  const [incidentType, setIncidentType] = useState('MED_REFUSAL');
-  const [incidentDesc, setIncidentDesc] = useState('');
   const [incidentSuccess, setIncidentSuccess] = useState('');
-  const [incidentError, setIncidentError] = useState('');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+
+  const {
+    register: registerIncident,
+    handleSubmit: handleSubmitIncident,
+    reset: resetIncident,
+    formState: { errors: incidentErrors },
+  } = useForm<IncidentForm>({
+    resolver: zodResolver(incidentSchema),
+    defaultValues: { type: 'MED_REFUSAL', description: '' },
+  });
+
+  const {
+    register: registerVital,
+    handleSubmit: handleSubmitVitals,
+    reset: resetVitals,
+    formState: { errors: vitalsErrors },
+  } = useForm<VitalsForm>({
+    resolver: zodResolver(vitalsSchema),
+    defaultValues: {
+      constante_fc: '', constante_tas: '', constante_tad: '', constante_temp: '', constante_spo2: '', notes: '',
+    },
+  });
 
   const { data: patients = [], isLoading, isError } = useQuery({
     queryKey: ['patients', 'assigned'],
@@ -156,14 +194,12 @@ export default function TCAEPage() {
       api.post<Incident>('/incidents', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['incidents', selectedId] });
-      setIncidentDesc('');
+      resetIncident();
       setShowIncidentForm(false);
       setIncidentSuccess('Incidencia registrada');
-      setIncidentError('');
       setTimeout(() => setIncidentSuccess(''), 3000);
     },
-    onError: (e: Error) => {
-      setIncidentError(e.message);
+    onError: () => {
       setIncidentSuccess('');
     },
   });
@@ -177,12 +213,12 @@ export default function TCAEPage() {
   }
 
   const submitMutation = useMutation({
-    mutationFn: async (entries: { type: VitalKey; value: string }[]) => {
+    mutationFn: async (payload: { entries: { type: VitalKey; value: string }[]; notes?: string }) => {
       const results = [];
-      for (const entry of entries) {
+      for (const entry of payload.entries) {
         const field = VITAL_FIELDS.find((f) => f.key === entry.type)!;
         try {
-          const r = await api.post<CareRecord>('/cares', { patientId: selectedId, type: entry.type, value: entry.value, unit: field.unit, notes: notes.trim() || undefined });
+          const r = await api.post<CareRecord>('/cares', { patientId: selectedId, type: entry.type, value: entry.value, unit: field.unit, notes: payload.notes?.trim() || undefined });
           results.push({ ok: true, r });
         } catch (e) { results.push({ ok: false, msg: (e as Error).message, type: entry.type }); }
       }
@@ -192,28 +228,23 @@ export default function TCAEPage() {
       qc.invalidateQueries({ queryKey: ['cares', selectedId] });
       const errs = results.filter((r) => !r.ok).map((r) => `${VITAL_LABELS[r.type ?? ''] ?? r.type}: ${r.msg}`);
       if (errs.length > 0) { setErrors(errs); setSuccessMsg(''); }
-      else { setSuccessMsg('Constantes registradas'); setErrors([]); setValues({}); setNotes(''); setTimeout(() => setSuccessMsg(''), 3000); }
+      else { setSuccessMsg('Constantes registradas'); setErrors([]); resetVitals(); setTimeout(() => setSuccessMsg(''), 3000); }
     },
   });
 
-  function handleSubmit() {
+  const onSubmitVitals = (data: VitalsForm) => {
     if (!selectedId) return;
-    const entries = VITAL_FIELDS.filter((f) => values[f.key]?.trim()).map((f) => ({ type: f.key, value: values[f.key]!.trim() }));
+    const entries = VITAL_FIELDS.filter((f) => data[f.key]?.trim()).map((f) => ({ type: f.key, value: data[f.key]!.trim() }));
     if (!entries.length) return;
     setErrors([]); setSuccessMsg('');
-    submitMutation.mutate(entries);
-  }
+    submitMutation.mutate({ entries, notes: data.notes });
+  };
 
-  function registerIncident() {
-    if (!selectedId || !incidentDesc.trim()) return;
-    incidentMutation.mutate({
-      patientId: selectedId,
-      type: incidentType,
-      description: incidentDesc.trim(),
-    });
-  }
+  const onSubmitIncident = (data: IncidentForm) => {
+    if (!selectedId) return;
+    incidentMutation.mutate({ patientId: selectedId, ...data });
+  };
 
-  const hasValues = VITAL_FIELDS.some((f) => values[f.key]?.trim());
   const restrictions = selected ? getRestrictions(selected) : [];
 
   return (
@@ -246,7 +277,7 @@ export default function TCAEPage() {
                 return (
                   <li key={p.id}>
                     <button
-                      onClick={() => { setSelectedId(p.id); setErrors([]); setSuccessMsg(''); setValues({}); }}
+                      onClick={() => { setSelectedId(p.id); setErrors([]); setSuccessMsg(''); resetVitals(); }}
                       className={`w-full text-left px-4 py-3 transition-all hover:bg-slate-50 border-l-4 ${isSelected ? 'bg-violet-50 border-violet-500' : 'border-transparent'}`}
                     >
                       <div className="flex items-center gap-1.5">
@@ -382,20 +413,21 @@ export default function TCAEPage() {
                   </div>
 
                   {showIncidentForm && (
-                    <div className="space-y-2 mb-3 p-3 bg-red-50 border-2 border-red-200 rounded-xl">
-                      <select value={incidentType} onChange={(e) => setIncidentType(e.target.value)}
+                    <form onSubmit={handleSubmitIncident(onSubmitIncident)} className="space-y-2 mb-3 p-3 bg-red-50 border-2 border-red-200 rounded-xl">
+                      <select {...registerIncident('type')}
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30">
                         {INCIDENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
-                      <input type="text" placeholder="Descripción de la incidencia..." value={incidentDesc}
-                        onChange={(e) => setIncidentDesc(e.target.value)}
+                      {incidentErrors.type && <p className="text-xs text-red-600 font-medium">{incidentErrors.type.message}</p>}
+                      <input type="text" placeholder="Descripción de la incidencia..." {...registerIncident('description')}
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-red-400/30" />
-                      <button onClick={registerIncident} disabled={!incidentDesc.trim() || incidentMutation.isPending}
+                      {incidentErrors.description && <p className="text-xs text-red-600 font-medium">{incidentErrors.description.message}</p>}
+                      <button type="submit" disabled={incidentMutation.isPending}
                         className="bg-red-500 text-white text-xs font-black px-4 py-1.5 rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-1.5">
                         {incidentMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                         Guardar incidencia
                       </button>
-                    </div>
+                    </form>
                   )}
 
                   {incidentSuccess && (
@@ -403,9 +435,9 @@ export default function TCAEPage() {
                       <CheckCircle2 className="w-3.5 h-3.5" /> {incidentSuccess}
                     </p>
                   )}
-                  {incidentError && (
+                  {incidentMutation.isError && (
                     <p className="text-xs text-red-600 flex items-center gap-1 mb-2 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5" /> {incidentError}
+                      <AlertCircle className="w-3.5 h-3.5" /> {(incidentMutation.error as Error).message}
                     </p>
                   )}
 
@@ -435,7 +467,7 @@ export default function TCAEPage() {
                   </div>
                   <h3 className="font-black text-slate-900">Registro de constantes vitales</h3>
                 </div>
-                <div className="p-5">
+                <form onSubmit={handleSubmitVitals(onSubmitVitals)} className="p-5">
                   {/* Latest readings */}
                   {Object.keys(latestByType).length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
@@ -458,15 +490,14 @@ export default function TCAEPage() {
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
                           {f.label} <span className="font-normal normal-case opacity-60">({f.unit})</span>
                         </label>
-                        <input type="number" step="0.1" placeholder={f.placeholder} value={values[f.key] ?? ''}
-                          onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                        <input type="number" step="0.1" placeholder={f.placeholder} {...registerVital(f.key)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-slate-300" />
+                        {vitalsErrors[f.key] && <p className="text-xs text-red-500 mt-1">{vitalsErrors[f.key]?.message}</p>}
                       </div>
                     ))}
                   </div>
 
-                  <input type="text" placeholder="Observaciones (opcional)" value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                  <input type="text" placeholder="Observaciones (opcional)" {...registerVital('notes')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 ring-slate-300 mb-3" />
 
                   {successMsg && <div className="flex items-center gap-2 text-sm text-emerald-600 font-bold mb-3"><CheckCircle2 className="w-4 h-4" />{successMsg}</div>}
@@ -476,12 +507,12 @@ export default function TCAEPage() {
                     </div>
                   )}
 
-                  <button onClick={handleSubmit} disabled={!hasValues || submitMutation.isPending}
+                  <button type="submit" disabled={submitMutation.isPending}
                     className="flex items-center gap-2 bg-slate-900 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                     {submitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                     Guardar constantes
                   </button>
-                </div>
+                </form>
               </div>
 
               {/* Shift history */}
