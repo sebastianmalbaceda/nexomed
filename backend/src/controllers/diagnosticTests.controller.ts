@@ -75,6 +75,7 @@ export const getAllDiagnosticTests = async (req: AuthRequest, res: Response) => 
     const tests = await prisma.diagnosticTest.findMany({
       where: buildDiagnosticTestsWhere({ patientId, type, status, date }),
       orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
+      take: 500,
       include: {
         requestedBy: { select: { name: true, role: true } },
         patient: {
@@ -100,6 +101,7 @@ export const getDiagnosticTests = async (req: AuthRequest, res: Response) => {
     const tests = await prisma.diagnosticTest.findMany({
       where: { patientId },
       orderBy: { scheduledAt: 'desc' },
+      take: 500,
       include: {
         requestedBy: { select: { name: true, role: true } },
         patient: {

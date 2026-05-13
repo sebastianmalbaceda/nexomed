@@ -11,6 +11,7 @@ export const getIncidents = async (req: AuthRequest, res: Response) => {
   try {
     const incidents = await prisma.incident.findMany({
       orderBy: { reportedAt: 'desc' },
+      take: 500,
       include: {
         reportedBy: { select: { name: true, role: true } },
         patient: { select: { name: true } }
@@ -32,6 +33,7 @@ export const getIncidentsByPatient = async (req: AuthRequest, res: Response) => 
     const incidents = await prisma.incident.findMany({
       where: { patientId },
       orderBy: { reportedAt: 'desc' },
+      take: 500,
       include: {
         reportedBy: { select: { name: true, role: true } }
       }

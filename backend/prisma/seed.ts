@@ -7,7 +7,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos...');
 
-  const password = await bcrypt.hash('password123', 12);
+  // NOTA: Todas las credenciales, nombres, fechas de nacimiento y diagnósticos
+  // utilizados en este seed son datos sintéticos generados para desarrollo y pruebas.
+  // No corresponden a personas reales.
+  const seedPassword = process.env.SEED_PASSWORD ?? 'password123';
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   // --- USUARIOS ---
   console.log('Creating users...');
@@ -15,44 +19,44 @@ async function main() {
   const doctor = await prisma.user.upsert({
     where: { email: 'dr.garcia@nexomed.es' },
     update: { name: 'Dr. Antonio García' },
-    create: { email: 'dr.garcia@nexomed.es', password, role: 'DOCTOR', name: 'Dr. Antonio García' },
+    create: { email: 'dr.garcia@nexomed.es', passwordHash, role: 'DOCTOR', name: 'Dr. Antonio García' },
   });
 
   // Enfermeros — 2 por turno (mañana, tarde, noche)
   const nurseMorning1 = await prisma.user.upsert({
     where: { email: 'enf.martinez@nexomed.es' },
     update: { name: 'María Martínez', shift: 'morning' },
-    create: { email: 'enf.martinez@nexomed.es', password, role: 'NURSE', name: 'María Martínez', shift: 'morning' },
+    create: { email: 'enf.martinez@nexomed.es', passwordHash, role: 'NURSE', name: 'María Martínez', shift: 'morning' },
   });
 
   const nurseMorning2 = await prisma.user.upsert({
     where: { email: 'enf.gomez@nexomed.es' },
     update: { name: 'Pedro Gómez', shift: 'morning' },
-    create: { email: 'enf.gomez@nexomed.es', password, role: 'NURSE', name: 'Pedro Gómez', shift: 'morning' },
+    create: { email: 'enf.gomez@nexomed.es', passwordHash, role: 'NURSE', name: 'Pedro Gómez', shift: 'morning' },
   });
 
   const nurseAfternoon1 = await prisma.user.upsert({
     where: { email: 'enf.lopez@nexomed.es' },
     update: { name: 'Carlos López', shift: 'afternoon' },
-    create: { email: 'enf.lopez@nexomed.es', password, role: 'NURSE', name: 'Carlos López', shift: 'afternoon' },
+    create: { email: 'enf.lopez@nexomed.es', passwordHash, role: 'NURSE', name: 'Carlos López', shift: 'afternoon' },
   });
 
   await prisma.user.upsert({
     where: { email: 'enf.vera@nexomed.es' },
     update: { name: 'Sofía Vera', shift: 'afternoon' },
-    create: { email: 'enf.vera@nexomed.es', password, role: 'NURSE', name: 'Sofía Vera', shift: 'afternoon' },
+    create: { email: 'enf.vera@nexomed.es', passwordHash, role: 'NURSE', name: 'Sofía Vera', shift: 'afternoon' },
   });
 
   const nurseNight1 = await prisma.user.upsert({
     where: { email: 'enf.ruiz@nexomed.es' },
     update: { name: 'Ana Ruiz', shift: 'night' },
-    create: { email: 'enf.ruiz@nexomed.es', password, role: 'NURSE', name: 'Ana Ruiz', shift: 'night' },
+    create: { email: 'enf.ruiz@nexomed.es', passwordHash, role: 'NURSE', name: 'Ana Ruiz', shift: 'night' },
   });
 
   await prisma.user.upsert({
     where: { email: 'enf.ramos@nexomed.es' },
     update: { name: 'Miguel Ramos', shift: 'night' },
-    create: { email: 'enf.ramos@nexomed.es', password, role: 'NURSE', name: 'Miguel Ramos', shift: 'night' },
+    create: { email: 'enf.ramos@nexomed.es', passwordHash, role: 'NURSE', name: 'Miguel Ramos', shift: 'night' },
   });
 
   // Eliminar nurses que ya no existen (renombrados)
@@ -63,7 +67,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email: 'tcae.sanchez@nexomed.es' },
     update: { name: 'Laura Sánchez' },
-    create: { email: 'tcae.sanchez@nexomed.es', password, role: 'TCAE', name: 'Laura Sánchez' },
+    create: { email: 'tcae.sanchez@nexomed.es', passwordHash, role: 'TCAE', name: 'Laura Sánchez' },
   });
 
   console.log('✅ Usuarios listos (8): 1 doctor, 6 enfermeros, 1 TCAE.');
@@ -325,7 +329,7 @@ async function main() {
   console.log('');
   console.log('🎉 Seed completado con éxito!');
   console.log('');
-  console.log('📝 Credenciales (contraseña: password123 para todos)');
+  console.log(`📝 Credenciales (contraseña: ${seedPassword} para todos)`);
   console.log('');
   console.log('  👨‍⚕️  DOCTOR');
   console.log('      Dr. Antonio García     →  dr.garcia@nexomed.es');

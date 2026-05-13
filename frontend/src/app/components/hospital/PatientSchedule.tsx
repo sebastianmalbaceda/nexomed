@@ -76,14 +76,18 @@ export function PatientSchedule({ patientId }: { patientId: string }) {
     enabled: !!patientId,
   });
 
+  const [administerError, setAdministerError] = useState<string>('');
+
   const administerMutation = useMutation({
     mutationFn: (scheduleId: string) =>
       api.post(`/medications/schedules/${scheduleId}/administer`, {}),
     onSuccess: () => {
+      setAdministerError('');
       qc.invalidateQueries({ queryKey: ['patient-schedule', patientId] });
       qc.invalidateQueries({ queryKey: ['medications', patientId] });
       qc.invalidateQueries({ queryKey: ['schedule'] });
     },
+    onError: (e: Error) => setAdministerError(e.message),
   });
 
   // Filtramos pruebas al día seleccionado
@@ -269,6 +273,12 @@ export function PatientSchedule({ patientId }: { patientId: string }) {
         </span>
       </div>
 
+      {administerError && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-200 flex items-center gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+          <p className="text-[11px] text-red-700 font-bold">{administerError}</p>
+        </div>
+      )}
       {counts.delayed > 0 && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-200 flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />

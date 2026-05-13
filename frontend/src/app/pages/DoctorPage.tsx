@@ -171,7 +171,6 @@ export default function DoctorPage() {
                       {(() => { const sc = statusConfig[selected.status] ?? statusConfig.ESTABLE; return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />; })()}
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {selected.dni && <span className="mr-2">DNI: {selected.dni}</span>}
                       {selected.bed ? `Hab. ${selected.bed.room}${selected.bed.letter}` : 'Sin cama'} · Ingreso: {new Date(selected.admissionDate).toLocaleDateString('es-ES')}
                     </p>
                   </div>

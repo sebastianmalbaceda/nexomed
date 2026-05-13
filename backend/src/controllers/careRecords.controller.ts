@@ -44,6 +44,7 @@ export const getCareRecords = async (req: AuthRequest, res: Response) => {
     const records = await prisma.careRecord.findMany({
       where: { patientId },
       orderBy: { recordedAt: 'desc' },
+      take: 500,
       include: { recordedBy: { select: { name: true, role: true } } }
     });
     res.json(records.map(r => ({ ...r, recordedBy: r.recordedBy?.name ?? '—' })));

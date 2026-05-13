@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Stop-Process -Id 24552, 25648, 29296, 36680 -Force)",
-      "Bash(git add *)",
-      "Bash(git commit -m 'feat\\(bd\\): añadir campo shift a User y relatedTestId a Notification *)"
-    ]
-  }
-}

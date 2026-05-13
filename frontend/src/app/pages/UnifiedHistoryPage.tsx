@@ -49,24 +49,24 @@ export default function UnifiedHistoryPage() {
     if (pid) setSelectedPatientId(pid);
   }, [searchParams]);
 
-  const { data: patients = [], isLoading: loadingPatients } = useQuery({
+  const { data: patients = [], isLoading: loadingPatients, isError: patientsError } = useQuery({
     queryKey: ['patients'],
     queryFn: () => api.get<Patient[]>('/patients'),
   });
 
-  const { data: records = [], isLoading: loadingRecords } = useQuery({
+  const { data: records = [], isLoading: loadingRecords, isError: recordsError } = useQuery({
     queryKey: ['care-records', selectedPatientId],
     queryFn: () => api.get<CareRecord[]>(`/cares/${selectedPatientId}`),
     enabled: selectedPatientId !== '',
   });
 
-  const { data: medications = [], isLoading: loadingMeds } = useQuery({
+  const { data: medications = [], isLoading: loadingMeds, isError: medsError } = useQuery({
     queryKey: ['medications-history', selectedPatientId],
     queryFn: () => api.get<Medication[]>(`/medications/${selectedPatientId}`),
     enabled: selectedPatientId !== '' && (user?.role === 'DOCTOR' || user?.role === 'NURSE'),
   });
 
-  const { data: diagnosticTests = [], isLoading: loadingTests } = useQuery({
+  const { data: diagnosticTests = [], isLoading: loadingTests, isError: testsError } = useQuery({
     queryKey: ['tests-history', selectedPatientId],
     queryFn: () => api.get<DiagnosticTest[]>(`/tests/${selectedPatientId}`),
     enabled: selectedPatientId !== '',
@@ -160,6 +160,12 @@ export default function UnifiedHistoryPage() {
         </div>
       )}
 
+      {patientsError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+          Error al cargar los pacientes. Verifica que el backend esté activo.
+        </div>
+      )}
+
       {!selectedPatientId ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-slate-200 rounded-2xl">
           <History className="w-12 h-12 opacity-30" />
@@ -216,6 +222,11 @@ export default function UnifiedHistoryPage() {
                 </div>
               )}
 
+              {recordsError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+                  Error al cargar los registros de cuidados.
+                </div>
+              )}
               {loadingRecords ? (
                 <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
               ) : filtered.length === 0 ? (
@@ -264,6 +275,11 @@ export default function UnifiedHistoryPage() {
 
           {activeTab === 'meds' && (
             <div className="space-y-4">
+              {medsError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+                  Error al cargar la medicación.
+                </div>
+              )}
               {loadingMeds ? (
                 <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
               ) : medications.length === 0 ? (
@@ -339,6 +355,11 @@ export default function UnifiedHistoryPage() {
 
           {activeTab === 'tests' && (
             <>
+              {testsError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+                  Error al cargar las pruebas diagnósticas.
+                </div>
+              )}
               {loadingTests ? (
                 <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
               ) : diagnosticTests.length === 0 ? (

@@ -71,12 +71,12 @@ describe('Incident Endpoints', () => {
         .set('Authorization', `Bearer ${nurseToken}`)
         .send({
           patientId,
-          type: 'RECHAZO_MEDICACION',
+          type: 'MED_REFUSAL',
           description: 'Test de incidencia automatizado ' + Date.now(),
         });
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('id');
-      expect(res.body.type).toBe('RECHAZO_MEDICACION');
+      expect(res.body.type).toBe('MED_REFUSAL');
     });
 
     it('debe devolver 400 si faltan campos obligatorios', async () => {
@@ -90,7 +90,7 @@ describe('Incident Endpoints', () => {
     it('debe devolver 401 sin token', async () => {
       const res = await request(app)
         .post('/api/incidents')
-        .send({ patientId, type: 'TEST', description: 'test' });
+        .send({ patientId, type: 'FALL', description: 'test' });
       expect(res.status).toBe(401);
     });
   });

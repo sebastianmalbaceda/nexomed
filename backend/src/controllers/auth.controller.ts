@@ -26,7 +26,7 @@ export const login = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET!,
-      { expiresIn: '8h' }
+      { expiresIn: '8h', algorithm: 'HS256' }
     );
 
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
@@ -49,7 +49,7 @@ export const getMe = async (req: Request, res: Response) => {
   if (!token) return res.status(401).json({ error: 'No hay token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string; name: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as { id: string; role: string; name: string };
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, name: true, email: true, role: true, createdAt: true }

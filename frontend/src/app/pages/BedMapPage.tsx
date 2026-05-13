@@ -414,7 +414,7 @@ export default function BedMapPage() {
                         {selectedBed.patient.name} {selectedBed.patient.surnames}
                       </h3>
                       <p className="text-blue-300 text-xs font-bold mt-1">
-                        NHC: {selectedBed.patient.dni || selectedBed.patient.id.slice(0, 8).toUpperCase()}
+                        NHC: {selectedBed.patient.id.slice(0, 8).toUpperCase()}
                       </p>
                       {selectedBed.patient.assignedNurseId && (
                         <p className="text-emerald-300 text-[10px] font-bold mt-0.5 flex items-center gap-1">
@@ -567,7 +567,7 @@ export default function BedMapPage() {
                       )}
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">DNI * (9 dígitos)</label>
+                         <label className="block text-xs font-bold text-slate-500 mb-1">DNI / NIE *</label>
                         <input
                           type="text"
                           placeholder="123456789"

@@ -134,6 +134,6 @@ router.put('/:id/schedule', authenticate, authorize('DOCTOR', 'NURSE'), updateMe
  *       404:
  *         description: Horario no encontrado
  */
-router.post('/schedules/:scheduleId/administer', authenticate, authorize('NURSE', 'TCAE'), administerSchedule);
+router.post('/schedules/:scheduleId/administer', authenticate, authorize('DOCTOR', 'NURSE'), administerSchedule);
 
 export default router;

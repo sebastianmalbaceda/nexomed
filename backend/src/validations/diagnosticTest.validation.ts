@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const createDiagnosticTestSchema = z.object({
   patientId: z.string().uuid('ID de paciente inválido'),
-  type: z.string().min(1, 'El tipo de prueba es obligatorio'),
+  type: z.enum(['LAB', 'IMAGING'], { message: 'Tipo de prueba no válido' }),
   name: z.string().min(1, 'El nombre de la prueba es obligatorio'),
   scheduledAt: z.string().refine(val => !isNaN(Date.parse(val)), 'Fecha programada inválida')
 });
@@ -16,7 +16,7 @@ export const updateDiagnosticTestSchema = z.object({
   type: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   scheduledAt: z.string().refine(val => !isNaN(Date.parse(val)) || !val).optional(),
-  status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional()
+  status: z.enum(['REQUESTED', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED']).optional()
 });
 
 export const updateTestStatusSchema = z.object({

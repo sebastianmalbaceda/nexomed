@@ -57,6 +57,6 @@ router.get('/:patientId', authenticate, getCareRecords);
  *       409:
  *         description: Registro duplicado (mismo tipo en < 15 min)
  */
-router.post('/', authenticate, authorize('NURSE', 'TCAE'), createCareRecord);
+router.post('/', authenticate, authorize('DOCTOR', 'NURSE', 'TCAE'), createCareRecord);
 
 export default router;

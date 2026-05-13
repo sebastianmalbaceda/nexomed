@@ -64,7 +64,7 @@ export default function NurseShiftSchedulePage() {
       ? user?.id ?? ''
       : nurseFilter;
 
-  const { data: scheduleItems = [], isLoading } = useQuery({
+  const { data: scheduleItems = [], isLoading, isError: scheduleError } = useQuery({
     queryKey: ['schedule', selectedDate, selectedShift, effectiveNurseId],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -211,6 +211,11 @@ export default function NurseShiftSchedulePage() {
         </div>
       </div>
 
+      {scheduleError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+          Error al cargar el cronograma. Verifica que el backend esté activo.
+        </div>
+      )}
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
       ) : filteredItems.length === 0 ? (

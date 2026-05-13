@@ -38,7 +38,7 @@ describe('CareRecord Endpoints', () => {
         .set('Authorization', `Bearer ${nurseToken}`)
         .send({
           patientId,
-          type: 'test_unico_' + Date.now(),
+          type: 'constante_temp',
           value: '37.5',
           unit: '°C'
         });
@@ -46,19 +46,19 @@ describe('CareRecord Endpoints', () => {
     });
 
     it('debe devolver 409 por duplicado en menos de 15 min', async () => {
-      const uniqueType = 'test_dup_' + Date.now();
+      const uniqueType = 'constante_fc';
 
       // Primer registro
       await request(app)
         .post('/api/cares')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ patientId, type: uniqueType, value: '37.0' });
+        .send({ patientId, type: uniqueType, value: '72' });
 
       // Segundo registro del mismo tipo (debe fallar)
       const res = await request(app)
         .post('/api/cares')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ patientId, type: uniqueType, value: '37.5' });
+        .send({ patientId, type: uniqueType, value: '75' });
 
       expect(res.status).toBe(409);
       expect(res.body.error).toContain('15 minutos');
@@ -75,7 +75,7 @@ describe('CareRecord Endpoints', () => {
         .set('Authorization', `Bearer ${tcaeToken}`)
         .send({
           patientId,
-          type: 'test_tcae_' + Date.now(),
+          type: 'constante_tas',
           value: '120/80',
           unit: 'mmHg'
         });

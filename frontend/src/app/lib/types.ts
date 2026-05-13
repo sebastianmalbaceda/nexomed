@@ -82,7 +82,7 @@ export type CareRecordType =
 export interface CareRecord {
   id: string;
   patientId: string;
-  type: CareRecordType | string;
+  type: CareRecordType;
   value: string;
   unit: string | null;
   notes: string | null;
@@ -126,7 +126,7 @@ export type IncidentType =
 export interface Incident {
   id: string;
   patientId: string;
-  type: IncidentType | string;
+  type: IncidentType;
   description: string;
   reportedBy: string;
   reportedById?: string;

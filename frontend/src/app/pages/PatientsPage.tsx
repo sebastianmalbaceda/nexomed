@@ -199,9 +199,7 @@ export default function PatientsPage() {
             <p className="text-sm text-muted-foreground mt-0.5">
               {selectedPatient.diagnosis}
             </p>
-            {selectedPatient.dni && (
-              <p className="text-xs text-muted-foreground mt-1">DNI: {selectedPatient.dni}</p>
-            )}
+
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {selectedPatient.bed && (
@@ -537,7 +535,7 @@ export default function PatientsPage() {
           {/* Resto del formulario */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">DNI * (9 dígitos)</label>
+              <label className="block text-sm font-medium text-foreground mb-1">DNI / NIE *</label>
               <input
                 type="text"
                 value={form.dni}
